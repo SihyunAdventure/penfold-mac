@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Penfold 지원</title><link rel="stylesheet" href="style.css">
+</head>
+<body><main>
+<header><img src="icon.png" alt=""><h1>Penfold</h1></header>
+<p>Penfold는 내 Mac에서 돌아가는 코딩 에이전트(Claude Code, Codex)를 iPhone에서 보고, 답하고, 새로 시작하는 앱이에요. 에이전트는 Mac의 <a href="https://herdr.dev">Herdr</a>에서 돌아가고, iPhone은 Tailscale을 거쳐 SSH로 Mac에 직접 연결해요.</p>
+
+<h2>Mac 준비</h2>
+<p>Mac 터미널에 아래 한 줄을 붙여 넣으세요. Tailscale, 원격 로그인, Herdr를 하나씩 확인하고 없는 건 설치를 도와요. 끝나면 연결용 QR이 떠요.</p>
+<p><code>curl -fsSL https://raw.githubusercontent.com/SihyunAdventure/penfold-mac/main/setup | zsh</code></p>
+<p>Mac이 없다면 앱 첫 화면의 <b>Mac 없이 둘러보기</b>로 모든 화면을 예시와 함께 써 볼 수 있어요.</p>
+
+<h2>자주 묻는 것</h2>
+<p><b>Mac에 연결이 안 돼요.</b> iPhone과 Mac 모두 Tailscale이 켜져 있고 같은 계정인지, Mac이 잠자기 상태가 아닌지 확인하세요. 앱의 설정 › 연결 상태가 어느 단계에서 막혔는지 보여 줘요.</p>
+<p><b>알림이 안 와요.</b> 설정 › 알림 카드에서 이 iPhone 허용, Mac의 알림 데몬, 등록 상태를 확인하고 시험 알림을 보내 보세요.</p>
+<p><b>제 코드나 대화가 어딘가로 가나요?</b> 아니요. 앱은 내 Mac과만 직접 통신해요. 자세한 내용은 <a href="privacy.html">개인정보처리방침</a>을 보세요.</p>
+
+<h2>문의</h2>
+<p>문제나 제안은 <a href="https://github.com/SihyunAdventure/penfold-mac/issues">GitHub Issues</a>에 남겨 주세요.</p>
+
+<h2 lang="en">Support (English)</h2>
+<p lang="en">Penfold lets you watch, answer and start the coding agents (Claude Code, Codex) running on your own Mac from your iPhone. Run the setup line above in the Mac's Terminal; it walks through Tailscale, Remote Login and Herdr and ends with a pairing QR. No Mac? Tap <b>Mac 없이 둘러보기</b> (Try without a Mac) on the first screen. Questions: <a href="https://github.com/SihyunAdventure/penfold-mac/issues">GitHub Issues</a>.</p>
+
+<nav><a href="privacy.html">개인정보처리방침</a><a href="https://github.com/SihyunAdventure/penfold-mac">Mac 설치 스크립트</a></nav>
+</main></body></html>
