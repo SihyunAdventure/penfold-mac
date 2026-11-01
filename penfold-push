@@ -1,9 +1,11 @@
 #!/usr/bin/python3
-"""Pushes to the phone when an agent needs you or finishes, straight to APNs.
+"""Pushes to the phone when an agent needs you or finishes: straight to APNs with this Mac's
+push key, or through penfold-relay on a Mac without one.
 
 Follows `hc events` (the same stream the app reads) and sends an alert when an agent's status
 turns blocked (응답 필요) or goes from working to done/idle (끝남). The phone registers itself
-by writing ~/.config/penfold/devices/<id>.json ({"token", "env": sandbox|production}).
+by writing ~/.config/penfold/devices/<id>.json ({"token", "env": sandbox|production, "ticket"}).
+The ticket is what the relay checks: it forwards only alerts whose ticket matches the token.
 
   penfold-push [--key-id X --team T --key PATH]   (defaults: this Mac's team key, below)
   penfold-push --test                             one test alert to every device, then exit
@@ -12,12 +14,14 @@ Runs under launchd (mac/co.notique.penfold-push.plist). Standard library only: t
 with `openssl`, sent with `curl --http2`, and never printed or put on a command line.
 """
 
-import argparse, base64, glob, json, os, subprocess, sys, tempfile, time
+import argparse, base64, glob, json, os, subprocess, sys, tempfile, time, urllib.error, urllib.request
 
 HC = os.path.expanduser("~/.local/bin/hc")
 DEVICES = os.path.expanduser("~/.config/penfold/devices")
 TOPIC = "co.notique.penfold.app"  # the app's bundle ID
 HOSTS = {"sandbox": "api.sandbox.push.apple.com", "production": "api.push.apple.com"}
+RELAY = "https://penfold-relay.vercel.app/api/push"
+KEY_DIR = "~/.config/" + "secrets/apns"
 KINDS = {"permission": "권한 요청", "question": "질문", "auth": "로그인 필요"}
 QUIET_SECONDS = 20  # the same alert for the same agent, at most this often
 
@@ -78,6 +82,26 @@ class Apns:
         code = out[-1].strip() if out else ""
         reason = out[0].strip() if len(out) > 1 else result.stderr.decode(errors="replace").strip()
         return code, reason
+
+
+class Relay:
+    """For a Mac without the push key: penfold-relay signs and sends."""
+
+    def send(self, device, payload, collapse=None):
+        if not device.get("ticket"):
+            return "000", "no relay ticket (open the app once to get one)"
+        body = {"token": device["token"], "env": device.get("env", "production"), "ticket": device["ticket"],
+                "payload": payload, "collapse": collapse}
+        request = urllib.request.Request(RELAY, data=json.dumps(body, ensure_ascii=False).encode(),
+                                         headers={"Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(request, timeout=20) as response:
+                result = json.load(response)
+            return str(result.get("status", "")), result.get("reason", "")
+        except urllib.error.HTTPError as error:
+            return str(error.code), error.read()[:200].decode(errors="replace")
+        except (OSError, ValueError) as error:
+            return "000", type(error).__name__
 
 
 def devices():
@@ -183,8 +207,9 @@ def main():
     parser.add_argument("--key", help="default: ~/.config/secrets/apns/AuthKey_<key-id>.p8")
     parser.add_argument("--test", action="store_true")
     args = parser.parse_args()
-    key = args.key or os.path.join("~/.config/secrets/apns", f"AuthKey_{args.key_id}.p8")
-    apns = Apns(os.path.expanduser(key), args.key_id, args.team)
+    key = os.path.expanduser(args.key or os.path.join(KEY_DIR, f"AuthKey_{args.key_id}.p8"))
+    apns = Apns(key, args.key_id, args.team) if os.path.exists(key) else Relay()
+    log("sending", "with this Mac's key" if isinstance(apns, Apns) else "through penfold-relay")
     if args.test:
         if not devices():
             log("no devices in", DEVICES, "- open the app once")

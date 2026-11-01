@@ -12,7 +12,7 @@ curl -fsSL https://raw.githubusercontent.com/SihyunAdventure/penfold-mac/main/se
 2. Tailscale — 설치·로그인·켜기
 3. 원격 로그인 (SSH)
 4. Herdr — herdr-core(`hc`)와 Herdr 앱
-5. 알림 — Penfold 푸시 키가 있는 Mac에서만, 없으면 건너뜀
+5. 알림 — 에이전트가 답을 기다리거나 끝나면 iPhone에 알려요 (penfold-relay 를 거쳐 Apple 푸시로)
 6. iPhone 연결 — 터미널에 QR이 뜨면 iPhone 카메라로 찍어요
 
 다시 실행해도 괜찮아요. 끝난 단계는 확인만 해요.

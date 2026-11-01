@@ -30,7 +30,6 @@ TAILSCALE_APP=/Applications/Tailscale.app
 TAILSCALE="$TAILSCALE_APP/Contents/MacOS/Tailscale"
 HC="$HOME/.local/bin/hc"
 HERDR_APP="$HOME/.local/bin/herdr-app"
-APNS_DIR="$HOME/.config/secrets/apns"
 
 bold=$'\e[1m' dim=$'\e[2m' green=$'\e[32m' yellow=$'\e[33m' red=$'\e[31m' off=$'\e[0m'
 missing=0
@@ -143,20 +142,16 @@ else
   todo "Herdr 앱이 없어요: curl -fsSL https://releases.herdr.dev/app/install.sh | sh"
 fi
 
-# 5 ─ Alerts: penfold-push sends them through Apple, signed with the app's push key, which
-#     only the app's maker has. Without it everything else still works, just without alerts.
-step 5 "알림 (선택)"
+# 5 ─ Alerts: penfold-push watches the agents and sends through penfold-relay (or straight to
+#     Apple on a Mac that holds the app's push key). The phone hands over its ticket when it connects.
+step 5 "알림"
 push_running() { launchctl print "gui/$(id -u)/co.notique.penfold-push" 2>/dev/null | grep -q "state = running"; }
 if push_running; then
   ok "penfold-push 실행 중이에요"
-elif [[ -n "$(print -r -- "$APNS_DIR"/AuthKey_*.p8(N))" ]]; then
-  if ask "알림 데몬(penfold-push)을 켤까요?"; then
-    "$here/install-push" >/dev/null && ok "켰어요" || fail "켜지 못했어요. ~/Library/Logs/penfold-push.log 를 보세요."
-  else
-    todo "꺼져 있어요: $me/install-push"
-  fi
+elif ask "에이전트가 답을 기다리거나 끝나면 iPhone에 알려 줄까요? (penfold-push를 켜요)"; then
+  "$here/install-push" >/dev/null && ok "켰어요" || fail "켜지 못했어요. ~/Library/Logs/penfold-push.log 를 보세요."
 else
-  note "이 Mac에는 Penfold 푸시 키가 없어서 건너뛰어요. 알림만 빼고 다 쓸 수 있어요."
+  todo "꺼져 있어요: $me/install-push"
 fi
 
 # 6 ─ Pairing: a QR with this Mac's address and key; the iPhone sends its key back.
