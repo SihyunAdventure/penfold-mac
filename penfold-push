@@ -1,0 +1,206 @@
+#!/usr/bin/python3
+"""Pushes to the phone when an agent needs you or finishes, straight to APNs.
+
+Follows `hc events` (the same stream the app reads) and sends an alert when an agent's status
+turns blocked (응답 필요) or goes from working to done/idle (끝남). The phone registers itself
+by writing ~/.config/penfold/devices/<id>.json ({"token", "env": sandbox|production}).
+
+  penfold-push [--key-id X --team T --key PATH]   (defaults: this Mac's team key, below)
+  penfold-push --test                             one test alert to every device, then exit
+
+Runs under launchd (mac/co.notique.penfold-push.plist). Standard library only: the JWT is signed
+with `openssl`, sent with `curl --http2`, and never printed or put on a command line.
+"""
+
+import argparse, base64, glob, json, os, subprocess, sys, tempfile, time
+
+HC = os.path.expanduser("~/.local/bin/hc")
+DEVICES = os.path.expanduser("~/.config/penfold/devices")
+TOPIC = "co.notique.penfold.app"  # the app's bundle ID
+HOSTS = {"sandbox": "api.sandbox.push.apple.com", "production": "api.push.apple.com"}
+KINDS = {"permission": "권한 요청", "question": "질문", "auth": "로그인 필요"}
+QUIET_SECONDS = 20  # the same alert for the same agent, at most this often
+
+
+def log(*parts):
+    print(time.strftime("%H:%M:%S"), *parts, file=sys.stderr, flush=True)
+
+
+def b64url(data):
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
+
+
+def der_to_raw(der):
+    """openssl signs ES256 as DER (SEQUENCE of r, s); JWT wants r‖s, 32 bytes each."""
+    def integer(at):
+        assert der[at] == 0x02
+        length = der[at + 1]
+        value = der[at + 2:at + 2 + length].lstrip(b"\x00")
+        return value.rjust(32, b"\x00"), at + 2 + length
+    at = 2 if der[1] < 0x80 else 3
+    r, at = integer(at)
+    s, _ = integer(at)
+    return r + s
+
+
+class Apns:
+    def __init__(self, key, key_id, team):
+        self.key, self.key_id, self.team = key, key_id, team
+        self.jwt, self.made = None, 0
+
+    def token(self):
+        # Apple accepts a token for an hour and refuses new ones more often than every 20 minutes.
+        if self.jwt and time.time() - self.made < 40 * 60:
+            return self.jwt
+        header = b64url(json.dumps({"alg": "ES256", "kid": self.key_id}).encode())
+        claims = b64url(json.dumps({"iss": self.team, "iat": int(time.time())}).encode())
+        signing = f"{header}.{claims}".encode()
+        der = subprocess.run(["openssl", "dgst", "-sha256", "-sign", self.key, "-binary"],
+                             input=signing, capture_output=True, check=True).stdout
+        self.jwt, self.made = f"{header}.{claims}.{b64url(der_to_raw(der))}", time.time()
+        return self.jwt
+
+    def send(self, device, payload, collapse=None):
+        host = HOSTS.get(device.get("env"), HOSTS["production"])
+        with tempfile.TemporaryDirectory() as tmp:
+            headers = os.path.join(tmp, "headers")
+            fd = os.open(headers, os.O_WRONLY | os.O_CREAT, 0o600)
+            with os.fdopen(fd, "w") as f:
+                f.write(f"authorization: bearer {self.token()}\n")
+                f.write(f"apns-topic: {TOPIC}\napns-push-type: alert\napns-priority: 10\n")
+                if collapse:
+                    f.write(f"apns-collapse-id: {collapse}\n")
+            result = subprocess.run(
+                ["curl", "-sS", "--http2", "-o", "-", "-w", "\n%{http_code}", "-H", f"@{headers}",
+                 "--data-binary", "@-", f"https://{host}/3/device/{device['token']}"],
+                input=json.dumps(payload, ensure_ascii=False).encode(), capture_output=True)
+        out = result.stdout.decode(errors="replace").rsplit("\n", 1)
+        code = out[-1].strip() if out else ""
+        reason = out[0].strip() if len(out) > 1 else result.stderr.decode(errors="replace").strip()
+        return code, reason
+
+
+def devices():
+    found = []
+    for path in glob.glob(os.path.join(DEVICES, "*.json")):
+        try:
+            with open(path) as f:
+                device = json.load(f)
+            if isinstance(device.get("token"), str):
+                device["path"] = path
+                found.append(device)
+        except (OSError, ValueError):
+            pass
+    return found
+
+
+def deliver(apns, payload, collapse=None):
+    for device in devices():
+        code, reason = apns.send(device, payload, collapse)
+        name = device.get("name") or os.path.basename(device["path"])
+        if code == "200":
+            log("sent", name, payload["aps"]["alert"].get("title", ""))
+        else:
+            log("failed", name, code, reason[:200])
+            if code == "410" or "BadDeviceToken" in reason or "DeviceTokenNotForTopic" in reason:
+                # The app was deleted or the token changed; it writes a new file when it opens.
+                os.remove(device["path"])
+
+
+def alert(terminal, before, after):
+    """What to say when `terminal` goes from status `before` to `after`, or None."""
+    status = terminal.get("status") or {}
+    if not status.get("app"):
+        return None  # a plain shell
+    title = terminal.get("title") or terminal.get("name") or status.get("app")
+    where = (terminal.get("labels") or {}).get("where", "").split(" / ")[0]
+    # One shape for every alert: what state at a glance and which agent (title), its space
+    # (subtitle), then the one detail worth reading (body).
+    if after == "blocked" and before != "blocked":
+        reason = KINDS.get(status.get("kind"), "응답 필요")
+        detail = status.get("msg") or status.get("title")
+        return "blocked", {"title": f"🙋 {title}", "subtitle": where,
+                           "body": f"{reason} · {detail}" if detail else f"{reason} · 답을 기다려요"}
+    if before == "working" and after in ("done", "idle"):
+        return "done", {"title": f"✅ {title}", "subtitle": where, "body": status.get("msg") or "작업을 마쳤어요"}
+    return None
+
+
+def follow(apns):
+    terminals, sent = {}, {}
+    process = subprocess.Popen([HC, "events", "--json"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    log("following hc events")
+    for raw in process.stdout:
+        try:
+            message = json.loads(raw)
+        except ValueError:
+            continue
+        params = message.get("params") or {}
+        if "terminals" in message or message.get("method") == "missed":
+            # A snapshot: the state to compare against, nothing to announce.
+            records = message.get("terminals") or params.get("terminals") or []
+            terminals = {t["address"]: t for t in records if isinstance(t, dict) and "address" in t}
+            continue
+        if message.get("method") != "event":
+            continue
+        kind, address, data = params.get("type"), params.get("terminal"), params.get("data") or {}
+        if kind in ("created", "restarted") and isinstance(data, dict):
+            terminals[address] = data
+            continue
+        if kind == "removed":
+            terminals.pop(address, None)
+            continue
+        terminal = terminals.get(address)
+        if terminal is None:
+            continue
+        if kind == "title":
+            terminal["title"] = data.get("title")
+        elif kind == "labels":
+            terminal["labels"] = data.get("labels") or {}
+        elif kind == "status":
+            before = (terminal.get("status") or {}).get("state")
+            terminal["status"] = data.get("status")
+            after = (terminal.get("status") or {}).get("state")
+            said = alert(terminal, before, after)
+            if not said:
+                continue
+            what, text = said
+            key = (address, what)
+            if time.time() - sent.get(key, 0) < QUIET_SECONDS:
+                continue
+            sent[key] = time.time()
+            deliver(apns, {"aps": {"alert": text, "sound": "default", "thread-id": address},
+                           "address": address}, collapse=f"{address}-{what}")
+    process.wait()
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    # The team's APNs key (shared with MMC and Twynning; see infra inventory). The file is read
+    # by openssl only; the key itself is never printed.
+    parser.add_argument("--key-id", default="428R996579")
+    parser.add_argument("--team", default="7M2DZPHB8R")
+    parser.add_argument("--key", help="default: ~/.config/secrets/apns/AuthKey_<key-id>.p8")
+    parser.add_argument("--test", action="store_true")
+    args = parser.parse_args()
+    key = args.key or os.path.join("~/.config/secrets/apns", f"AuthKey_{args.key_id}.p8")
+    apns = Apns(os.path.expanduser(key), args.key_id, args.team)
+    if args.test:
+        if not devices():
+            log("no devices in", DEVICES, "- open the app once")
+            return 1
+        deliver(apns, {"aps": {"alert": {"title": "Penfold", "body": "푸시가 연결됐어요"}, "sound": "default"}})
+        return 0
+    backoff = 1
+    while True:
+        started = time.time()
+        try:
+            follow(apns)
+        except Exception as error:  # keep going; launchd restarts us only if we exit
+            log("error", type(error).__name__)
+        backoff = 1 if time.time() - started > 60 else min(backoff * 2, 60)
+        time.sleep(backoff)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

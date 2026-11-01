@@ -1,0 +1,191 @@
+#!/bin/zsh
+# Gets this Mac ready for Penfold, one step at a time, then shows the QR the iPhone scans.
+# Each step checks first and only asks when something is missing, so running it again is safe.
+#
+#   curl -fsSL https://raw.githubusercontent.com/SihyunAdventure/penfold-mac/main/setup | zsh
+#   ~/.penfold/setup              everything, then pairing (or mac/setup in the Penfold repo)
+#   ~/.penfold/setup --check      only report what's ready (changes nothing)
+set -uo pipefail
+
+here="$(cd "$(dirname "$0")" && pwd)"
+
+# Run through curl, there's nothing beside this script: fetch the rest into ~/.penfold and
+# carry on from there, so later runs (and the push daemon) have a home.
+if [[ ! -f "$here/penfold-pair" ]]; then
+  dest="$HOME/.penfold"
+  print -r -- "Penfold 파일을 ${dest/#$HOME/~} 에 내려받아요…"
+  mkdir -p "$dest"
+  if ! curl -fsSL https://codeload.github.com/SihyunAdventure/penfold-mac/tar.gz/refs/heads/main \
+      | tar -xz -C "$dest" --strip-components 1; then
+    print -r -- "내려받지 못했어요. 인터넷 연결을 확인하고 다시 실행하세요."
+    exit 1
+  fi
+  exec /bin/zsh "$dest/setup" "$@"
+fi
+me="${here/#$HOME/~}"
+check_only=false
+[[ "${1:-}" == "--check" ]] && check_only=true
+
+TAILSCALE_APP=/Applications/Tailscale.app
+TAILSCALE="$TAILSCALE_APP/Contents/MacOS/Tailscale"
+HC="$HOME/.local/bin/hc"
+HERDR_APP="$HOME/.local/bin/herdr-app"
+APNS_DIR="$HOME/.config/secrets/apns"
+
+bold=$'\e[1m' dim=$'\e[2m' green=$'\e[32m' yellow=$'\e[33m' red=$'\e[31m' off=$'\e[0m'
+missing=0
+
+step() { print -r -- ""; print -r -- "${bold}[$1/6] $2${off}"; }
+ok() { print -r -- "  ${green}✓${off} $1"; }
+todo() { print -r -- "  ${yellow}!${off} $1"; missing=$((missing + 1)); }
+note() { print -r -- "  ${dim}$1${off}"; }
+fail() { print -r -- "  ${red}✗${off} $1"; }
+
+# "질문 [Y/n]": Enter means yes.
+ask() {
+  $check_only && return 1
+  local reply
+  read -r "reply?  $1 [Y/n] " </dev/tty
+  [[ -z "$reply" || "$reply" == [Yyㅛ]* ]]
+}
+
+# Waits until `$@` succeeds, checking every 2 s. Ctrl+C stops the whole setup.
+wait_for() {
+  local what="$1"; shift
+  local frames=(⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏) i=0
+  until "$@" >/dev/null 2>&1; do
+    printf "\r  %s %s (그만두려면 Ctrl+C)" "${frames[i % 10 + 1]}" "$what"
+    i=$((i + 1))
+    sleep 2
+  done
+  printf "\r\e[K"
+}
+
+trap 'print -r -- ""; print -r -- "멈췄어요. 준비되면 $me/setup 을 다시 실행하세요. 끝난 단계는 건너뛰어요."; exit 130' INT
+
+print -r -- "${bold}Penfold — Mac 준비${off}"
+print -r -- "${dim}iPhone에서 이 Mac의 에이전트를 보려면 아래 여섯 가지가 필요해요.${off}"
+
+# 1 ─ Command line tools: /usr/bin/python3, which the app runs over SSH, lives there.
+step 1 "개발자 도구 (python3)"
+clt_ready() { xcode-select -p && /usr/bin/python3 -c 'pass'; }
+if clt_ready >/dev/null 2>&1; then
+  ok "설치돼 있어요"
+elif ask "Apple 개발자 도구(Command Line Tools)를 설치할까요? 창이 뜨면 '설치'를 누르세요."; then
+  xcode-select --install >/dev/null 2>&1
+  wait_for "설치를 기다리는 중 (몇 분 걸려요)" clt_ready
+  ok "설치했어요"
+else
+  todo "없어요. 터미널에서 xcode-select --install 을 실행해 설치하세요."
+fi
+
+# 2 ─ Tailscale: the iPhone reaches this Mac through it, from anywhere.
+step 2 "Tailscale"
+tailscale_running() { [[ "$("$TAILSCALE" status --json 2>/dev/null | /usr/bin/python3 -c 'import json,sys; print(json.load(sys.stdin).get("BackendState",""))' 2>/dev/null)" == Running ]]; }
+if [[ ! -d "$TAILSCALE_APP" ]]; then
+  if ask "Tailscale이 없어요. 내려받아 설치 화면을 열까요?"; then
+    pkg="$HOME/Downloads/Tailscale.pkg"
+    note "내려받는 중…"
+    if curl -fsSL -o "$pkg" https://pkgs.tailscale.com/stable/Tailscale-latest-macos.pkg; then
+      open "$pkg"
+      note "설치 화면에서 '계속'을 눌러 끝까지 진행하세요."
+    else
+      open "https://tailscale.com/download/mac"
+      note "내려받지 못해서 Tailscale 사이트를 열었어요. 거기서 설치하세요."
+    fi
+    wait_for "설치를 기다리는 중" test -x "$TAILSCALE"
+    ok "설치했어요"
+  else
+    todo "없어요. https://tailscale.com/download/mac 에서 설치하세요."
+  fi
+fi
+if [[ -x "$TAILSCALE" ]]; then
+  if tailscale_running; then
+    ok "켜져 있어요 · $("$TAILSCALE" ip -4 2>/dev/null | head -1)"
+  elif ! $check_only; then
+    open -a "$TAILSCALE_APP"
+    note "메뉴 막대의 Tailscale에서 로그인하고 켜 주세요. iPhone과 같은 계정이어야 해요."
+    wait_for "Tailscale이 켜지길 기다리는 중" tailscale_running
+    ok "켜졌어요 · $("$TAILSCALE" ip -4 2>/dev/null | head -1)"
+  else
+    todo "꺼져 있거나 로그인 전이에요."
+  fi
+fi
+
+# 3 ─ Remote Login: the app talks to this Mac over SSH.
+step 3 "원격 로그인 (SSH)"
+ssh_on() { nc -z -G 1 127.0.0.1 22 && [[ -r /etc/ssh/ssh_host_ed25519_key.pub ]]; }
+if ssh_on >/dev/null 2>&1; then
+  ok "켜져 있어요"
+elif ! $check_only; then
+  open "x-apple.systempreferences:com.apple.Sharing-Settings.extension"
+  note "열린 설정 창(일반 › 공유)에서 '원격 로그인'을 켜 주세요."
+  wait_for "원격 로그인이 켜지길 기다리는 중" ssh_on
+  ok "켜졌어요"
+else
+  todo "꺼져 있어요. 시스템 설정 › 일반 › 공유 › 원격 로그인."
+fi
+
+# 4 ─ Herdr: herdr-core (hc) runs the terminals and agents, Herdr.app groups them into spaces.
+step 4 "Herdr"
+if [[ -x "$HC" ]] && "$HC" --version >/dev/null 2>&1; then
+  ok "herdr-core $("$HC" --version 2>/dev/null | awk '{print $2}')"
+elif ask "herdr-core(hc)가 없어요. 설치할까요?"; then
+  curl -fsSL https://releases.herdr.dev/core/install.sh | sh && ok "herdr-core 설치했어요" || fail "herdr-core 설치에 실패했어요."
+else
+  todo "herdr-core가 없어요: curl -fsSL https://releases.herdr.dev/core/install.sh | sh"
+fi
+if [[ -x "$HERDR_APP" || -d /Applications/Herdr.app ]]; then
+  ok "Herdr 앱"
+elif ask "Herdr 앱이 없어요. 설치할까요? (스페이스·탭을 쓰려면 필요해요)"; then
+  curl -fsSL https://releases.herdr.dev/app/install.sh | sh && ok "Herdr 앱 설치했어요" || fail "Herdr 앱 설치에 실패했어요."
+else
+  todo "Herdr 앱이 없어요: curl -fsSL https://releases.herdr.dev/app/install.sh | sh"
+fi
+
+# 5 ─ Alerts: penfold-push sends them through Apple, signed with the app's push key, which
+#     only the app's maker has. Without it everything else still works, just without alerts.
+step 5 "알림 (선택)"
+push_running() { launchctl print "gui/$(id -u)/co.notique.penfold-push" 2>/dev/null | grep -q "state = running"; }
+if push_running; then
+  ok "penfold-push 실행 중이에요"
+elif [[ -n "$(print -r -- "$APNS_DIR"/AuthKey_*.p8(N))" ]]; then
+  if ask "알림 데몬(penfold-push)을 켤까요?"; then
+    "$here/install-push" >/dev/null && ok "켰어요" || fail "켜지 못했어요. ~/Library/Logs/penfold-push.log 를 보세요."
+  else
+    todo "꺼져 있어요: $me/install-push"
+  fi
+else
+  note "이 Mac에는 Penfold 푸시 키가 없어서 건너뛰어요. 알림만 빼고 다 쓸 수 있어요."
+fi
+
+# 6 ─ Pairing: a QR with this Mac's address and key; the iPhone sends its key back.
+step 6 "iPhone 연결"
+if $check_only; then
+  if ((missing)); then
+    print -r -- ""; print -r -- "${yellow}준비할 게 ${missing}개 남았어요.${off} $me/setup 으로 하나씩 해요."
+  else
+    print -r -- ""; print -r -- "${green}다 준비됐어요.${off} $me/setup 이나 $me/penfold-pair 로 연결하세요."
+  fi
+  exit 0
+fi
+if ((missing)); then
+  print -r -- ""
+  print -r -- "${yellow}위의 ! 항목을 먼저 마친 뒤 $me/setup 을 다시 실행하세요.${off}"
+  exit 1
+fi
+note "iPhone에서 Penfold와 Tailscale을 켠 다음, 기본 카메라로 아래 QR을 찍으세요."
+note "'Penfold에서 열기' → '연결'을 누르면 끝나요."
+print -r -- ""
+/usr/bin/python3 "$here/penfold-pair"
+status=$?
+
+if ((status == 0)); then
+  print -r -- ""
+  print -r -- "${green}${bold}준비 끝!${off} 이제 iPhone에서 에이전트가 보여요."
+  if pmset -g 2>/dev/null | awk '$1 == "sleep" { exit !($2 != 0) }'; then
+    note "팁: Mac이 잠자기에 들어가면 iPhone에서 닿지 않아요. 자리를 비울 땐 전원에 연결하고"
+    note "     시스템 설정 › 배터리(또는 에너지)에서 '자동으로 잠자기 방지'를 켜 두세요."
+  fi
+fi
+exit $status

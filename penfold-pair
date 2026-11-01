@@ -1,0 +1,166 @@
+#!/usr/bin/env python3
+"""Pair an iPhone running Penfold with this Mac by QR code.
+
+Prints a QR (scan with the iPhone camera). The app sends its SSH public key back
+over Tailscale with the one-time token; this script appends it to
+~/.ssh/authorized_keys and exits. Nothing listens beyond the Tailscale address,
+and the listener closes after one pairing or the timeout.
+"""
+import argparse
+import getpass
+import json
+import os
+import re
+import secrets
+import socket
+import subprocess
+import sys
+import time
+import urllib.parse
+
+TAILSCALE = "/Applications/Tailscale.app/Contents/MacOS/Tailscale"
+HOST_KEY = "/etc/ssh/ssh_host_ed25519_key.pub"
+AUTHORIZED_KEYS = os.path.expanduser("~/.ssh/authorized_keys")
+KEY_RE = re.compile(r"^ssh-ed25519 [A-Za-z0-9+/]+=*$")
+LABEL_RE = re.compile(r"^[A-Za-z0-9._-]{1,40}$")
+
+# macOS draws the QR itself (Core Image, through JavaScript for Automation): nothing to install.
+QR_JS = """
+ObjC.import('CoreImage'); ObjC.import('AppKit');
+function run(argv) {
+  const f = $.CIFilter.filterWithName('CIQRCodeGenerator');
+  f.setValueForKey($(argv[0]).dataUsingEncoding($.NSUTF8StringEncoding), 'inputMessage');
+  f.setValueForKey($('M'), 'inputCorrectionLevel');
+  const rep = $.NSBitmapImageRep.alloc.initWithCIImage(f.outputImage);
+  const rows = [];
+  for (let y = 0; y < rep.pixelsHigh; y++) {
+    let row = '';
+    for (let x = 0; x < rep.pixelsWide; x++) row += rep.colorAtXY(x, y).brightnessComponent < 0.5 ? '1' : '0';
+    rows.push(row);
+  }
+  return rows.join('\\n');
+}
+"""
+
+
+def tailscale_self():
+    out = subprocess.run([TAILSCALE, "status", "--json"], capture_output=True, text=True, check=True).stdout
+    me = json.loads(out)["Self"]
+    ipv4 = next(ip for ip in me["TailscaleIPs"] if ":" not in ip)
+    host = (me.get("DNSName") or me["HostName"]).split(".")[0]
+    return host, ipv4
+
+
+def host_key():
+    with open(HOST_KEY) as f:
+        kind, blob = f.read().split()[:2]
+    return f"{kind} {blob}"
+
+
+def authorize(key, label):
+    line = f"{key} penfold-{label}"
+    os.makedirs(os.path.dirname(AUTHORIZED_KEYS), mode=0o700, exist_ok=True)
+    existing = open(AUTHORIZED_KEYS).read() if os.path.exists(AUTHORIZED_KEYS) else ""
+    if key in existing:
+        return False
+    with open(AUTHORIZED_KEYS, "a") as f:
+        if existing and not existing.endswith("\n"):
+            f.write("\n")
+        f.write(line + "\n")
+    os.chmod(AUTHORIZED_KEYS, 0o600)
+    return True
+
+
+def serve(sock, token, deadline, user):
+    attempts = 0
+    while time.time() < deadline and attempts < 5:
+        sock.settimeout(max(0.1, deadline - time.time()))
+        try:
+            conn, peer = sock.accept()
+        except socket.timeout:
+            break
+        attempts += 1
+        with conn:
+            conn.settimeout(5)
+            try:
+                raw = conn.makefile("r").readline(4096)
+                req = json.loads(raw)
+                if not secrets.compare_digest(str(req.get("token", "")), token):
+                    raise ValueError("bad token")
+                key = str(req.get("key", "")).strip()
+                label = str(req.get("label", "iphone"))
+                if not KEY_RE.match(key) or not LABEL_RE.match(label):
+                    raise ValueError("bad key")
+                added = authorize(key, label)
+                conn.sendall((json.dumps({"ok": True, "user": user}) + "\n").encode())
+                print(f"\n✓ {peer[0]} 페어링 완료 — {'키 추가됨' if added else '이미 등록된 키'} (penfold-{label})")
+                return True
+            except Exception as e:  # noqa: BLE001 — any bad request just gets refused
+                try:
+                    conn.sendall((json.dumps({"ok": False, "error": str(e)}) + "\n").encode())
+                except OSError:
+                    pass
+                print(f"✗ {peer[0]} 거부: {e}", file=sys.stderr)
+    return False
+
+
+def qr(text, margin=2):
+    """The QR for `text` as terminal lines, two modules per character (black on white whatever
+    the terminal's colours)."""
+    out = subprocess.run(["osascript", "-l", "JavaScript", "-e", QR_JS, text],
+                         capture_output=True, text=True, check=True).stdout
+    rows = [r.strip() for r in out.splitlines() if r.strip()]
+    width = len(rows[0]) + 2 * margin
+    rows = ["0" * width] * margin + ["0" * margin + r + "0" * margin for r in rows] + ["0" * width] * margin
+    if len(rows) % 2:
+        rows.append("0" * width)
+    colour = {"1": "16", "0": "231"}  # 256-colour black, white
+    lines = []
+    for top, bottom in zip(rows[::2], rows[1::2]):
+        cells = "".join(f"\033[38;5;{colour[a]};48;5;{colour[b]}m▀" for a, b in zip(top, bottom))
+        lines.append(cells + "\033[0m")
+    return lines
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("--session", default="", help="herdr 세션 이름 (기본 세션이면 생략)")
+    ap.add_argument("--user", default=getpass.getuser())
+    ap.add_argument("--ssh-port", type=int, default=22)
+    ap.add_argument("--timeout", type=int, default=120, help="초")
+    ap.add_argument("--print-url", action="store_true", help="QR 대신 URL 출력 (시뮬레이터 테스트용)")
+    args = ap.parse_args()
+
+    try:
+        host, ipv4 = tailscale_self()
+        host_key()
+    except (OSError, subprocess.CalledProcessError, KeyError, StopIteration):
+        sys.exit("Tailscale이나 원격 로그인이 아직 준비되지 않았어요. 같은 폴더의 setup 을 먼저 실행하세요.")
+    token = secrets.token_urlsafe(18)
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.bind((ipv4, 0))
+    sock.listen(4)
+    pair_port = sock.getsockname()[1]
+
+    query = urllib.parse.urlencode({
+        "v": 1, "host": host, "port": args.ssh_port, "user": args.user,
+        "session": args.session, "hostkey": host_key(),
+        "pair": f"{ipv4}:{pair_port}", "token": token,
+    }, quote_via=urllib.parse.quote)
+    url = f"penfold://pair?{query}"
+
+    if args.print_url:
+        print(url, flush=True)
+    else:
+        print("\n".join(qr(url)), flush=True)
+    print(f"iPhone 카메라로 스캔하세요 — {host} ({ipv4}), 사용자 {args.user}"
+          f"{', 세션 ' + args.session if args.session else ''}. {args.timeout}초 뒤 닫힘.")
+    ok = serve(sock, token, time.time() + args.timeout, args.user)
+    sock.close()
+    if not ok:
+        print("페어링 없이 종료했어요.", file=sys.stderr)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

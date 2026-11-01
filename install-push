@@ -1,0 +1,10 @@
+#!/bin/zsh
+# Installs (or reinstalls) the push daemon as a launchd agent for this user.
+set -euo pipefail
+here="$(cd "$(dirname "$0")" && pwd)"
+plist="$HOME/Library/LaunchAgents/co.notique.penfold-push.plist"
+mkdir -p "$HOME/Library/LaunchAgents"
+sed -e "s#__DIR__#$here#" -e "s#__HOME__#$HOME#g" "$here/co.notique.penfold-push.plist" > "$plist"
+launchctl bootout "gui/$(id -u)/co.notique.penfold-push" 2>/dev/null || true
+launchctl bootstrap "gui/$(id -u)" "$plist"
+echo "penfold-push running · log: ~/Library/Logs/penfold-push.log"
