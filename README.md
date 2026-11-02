@@ -11,7 +11,7 @@ curl -fsSL https://raw.githubusercontent.com/SihyunAdventure/penfold-mac/main/se
 1. 개발자 도구 (python3)
 2. Tailscale — 설치·로그인·켜기
 3. 원격 로그인 (SSH)
-4. Herdr — herdr-core(`hc`)와 Herdr 앱
+4. Herdr — herdr-core(`hc`)와 Herdr 앱, 그리고 코딩 에이전트(Claude Code 또는 Codex) 확인. 에이전트는 직접 설치·로그인해 두세요.
 5. 알림 — 에이전트가 답을 기다리거나 끝나면 iPhone에 알려요 (penfold-relay 를 거쳐 Apple 푸시로)
 6. iPhone 연결 — 터미널에 QR이 뜨면 iPhone 카메라로 찍어요
 
@@ -22,5 +22,7 @@ curl -fsSL https://raw.githubusercontent.com/SihyunAdventure/penfold-mac/main/se
 ~/.penfold/setup --check    # 바꾸지 않고 상태만
 ~/.penfold/penfold-pair     # 준비된 Mac에서 QR만 다시
 ```
+
+macOS 전용이에요. Mac이 잠자기에 들어가면 iPhone에서 닿지 않으니, 자리를 비울 땐 전원에 연결해 두세요.
 
 Homebrew는 필요 없어요. QR은 macOS 기본 기능(Core Image)으로 그려요.

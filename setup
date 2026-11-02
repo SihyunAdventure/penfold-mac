@@ -126,7 +126,7 @@ else
 fi
 
 # 4 ─ Herdr: herdr-core (hc) runs the terminals and agents, Herdr.app groups them into spaces.
-step 4 "Herdr"
+step 4 "Herdr와 코딩 에이전트"
 if [[ -x "$HC" ]] && "$HC" --version >/dev/null 2>&1; then
   ok "herdr-core $("$HC" --version 2>/dev/null | awk '{print $2}')"
 elif ask "herdr-core(hc)가 없어요. 설치할까요?"; then
@@ -140,6 +140,19 @@ elif ask "Herdr 앱이 없어요. 설치할까요? (스페이스·탭을 쓰려�
   curl -fsSL https://releases.herdr.dev/app/install.sh | sh && ok "Herdr 앱 설치했어요" || fail "Herdr 앱 설치에 실패했어요."
 else
   todo "Herdr 앱이 없어요: curl -fsSL https://releases.herdr.dev/app/install.sh | sh"
+fi
+# The agents themselves: Penfold shows and drives them but doesn't install them. Not having one
+# doesn't stop pairing (a shell works too), so it's a warning, not a missing step.
+has() { command -v "$1" >/dev/null 2>&1 || [[ -x "$HOME/.local/bin/$1" || -x "/opt/homebrew/bin/$1" || -x "/usr/local/bin/$1" ]]; }
+agents=()
+has claude && agents+=("Claude Code")
+has codex && agents+=("Codex")
+if ((${#agents})); then
+  ok "코딩 에이전트: ${(j:, :)agents}"
+else
+  print -r -- "  ${yellow}!${off} Claude Code도 Codex도 없어요. iPhone에서 시작할 에이전트가 없으니 하나는 설치하세요."
+  note "Claude Code: curl -fsSL https://claude.ai/install.sh | bash   (설치 뒤 터미널에서 claude 로 로그인)"
+  note "Codex:       npm install -g @openai/codex                    (설치 뒤 codex 로 로그인)"
 fi
 
 # 5 ─ Alerts: penfold-push watches the agents and sends through penfold-relay (or straight to
