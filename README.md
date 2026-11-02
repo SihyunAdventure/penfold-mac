@@ -2,6 +2,8 @@
 
 Penfold iPhone 앱이 이 Mac의 코딩 에이전트(herdr)를 보고 조종하려면 Mac 쪽 준비가 필요해요. 터미널에 한 줄이면 돼요.
 
+> **Herdr 전용이에요.** Penfold는 [Herdr](https://herdr.dev) 안에서 실행한 에이전트만 보여요. 터미널 앱이나 iTerm에서 바로 띄운 `claude`·`codex`는 보이지 않아요. Herdr의 탭이나 Penfold의 ＋로 시작하세요.
+
 ```sh
 curl -fsSL https://raw.githubusercontent.com/SihyunAdventure/penfold-mac/main/setup | zsh
 ```
