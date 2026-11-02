@@ -6,9 +6,9 @@
 </head>
 <body><main>
 <header><img src="icon.png" alt=""><h1>개인정보처리방침</h1></header>
-<p class="muted">시행일 2026년 11월 1일</p>
+<p class="muted">시행일 2026년 11월 2일</p>
 
-<p>Penfold는 개인정보를 수집하지 않아요. 계정, 분석 도구, 광고, 추적이 없고, 개발자가 운영하는 서버로 사용자의 데이터를 보내지 않아요.</p>
+<p>Penfold는 개인정보를 수집하지 않아요. 계정, 분석 도구, 광고, 추적이 없어요. 에이전트 목록, 대화, 코드, 터미널 화면은 개발자가 운영하는 서버로 보내지 않아요. 유일한 예외는 알림이에요(아래 '알림'에서 설명해요).</p>
 
 <h2>앱이 연결하는 곳</h2>
 <p>앱은 사용자가 연결한 <b>사용자 본인의 Mac</b>에만 SSH로 직접 연결해요(보통 Tailscale 네트워크를 거쳐요). 에이전트 목록, 대화 내용, 터미널 화면, 보내는 메시지·사진·파일은 이 연결로만 오가고, 그 외 어디에도 저장되거나 전송되지 않아요.</p>
@@ -25,7 +25,7 @@
 <li><b>카메라·사진</b>: 사용자가 고른 사진을 에이전트에게 보낼 때만 써요. 사진은 사용자의 Mac으로만 가요.</li>
 <li><b>마이크·음성 인식</b>: 받아쓰기로 메시지를 입력할 때만 써요. 음성 인식은 Apple의 음성 인식 기능이 처리해요.</li>
 <li><b>로컬 네트워크</b>: Mac에 SSH로 연결하는 데 써요.</li>
-<li><b>알림</b>: 에이전트가 답을 기다리거나 작업을 마쳤을 때 알려 줘요. 알림 토큰은 사용자의 Mac에 저장되고, 알림은 Mac에서 Apple 푸시 알림 서비스(APNs)를 통해 보내져요. 알림 중계 서버를 쓰는 경우 중계는 알림 내용을 저장하지 않고 APNs로 전달만 해요.</li>
+<li><b>알림</b>: 에이전트가 답을 기다리거나 작업을 마쳤을 때 알려 줘요. 알림을 켜면 앱이 iPhone의 알림 토큰을 개발자가 운영하는 알림 중계 서버(penfold-relay)에 보내 확인값을 받고, 토큰과 확인값은 사용자의 Mac에 저장돼요. 알림이 생기면 Mac이 토큰과 알림 내용(에이전트 이름, 스페이스, 권한을 요청한 명령 같은 짧은 상태 한 줄)을 중계 서버로 보내고, 중계 서버는 이를 Apple 푸시 알림 서비스(APNs)로 전달만 해요. 중계 서버는 토큰과 알림 내용을 저장하지 않아요. 알림을 허용하지 않으면 토큰이 만들어지지 않아 중계 서버로 아무것도 가지 않아요.</li>
 </ul>
 
 <h2>데모 모드</h2>
@@ -35,7 +35,7 @@
 <p><a href="https://github.com/SihyunAdventure/penfold-mac/issues">GitHub Issues</a>로 연락해 주세요. 이 방침이 바뀌면 이 페이지에 시행일과 함께 알려요.</p>
 
 <h2 lang="en">Privacy Policy (English)</h2>
-<p lang="en">Penfold collects no personal data: no accounts, analytics, ads or tracking, and nothing is sent to servers run by the developer. The app connects only to the user's own Mac over SSH (usually through Tailscale); agent lists, conversations, terminal screens and the messages, photos and files the user sends travel only over that connection. Connection settings and drafts stay on the iPhone; the SSH key is created on the iPhone and kept in the Keychain. Camera, photos, microphone and speech recognition are used only when the user attaches a photo or dictates a message. Notification tokens are stored on the user's Mac, which sends alerts through Apple Push Notification service. The demo mode uses sample data inside the app and connects nowhere.</p>
+<p lang="en">Effective November 2, 2026. Penfold collects no personal data: no accounts, analytics, ads or tracking. Agent lists, conversations, code and terminal screens are never sent to servers run by the developer; the one exception is alerts, described below. The app connects only to the user's own Mac over SSH (usually through Tailscale); agent lists, conversations, terminal screens and the messages, photos and files the user sends travel only over that connection. Connection settings and drafts stay on the iPhone; the SSH key is created on the iPhone and kept in the Keychain. Camera, photos, microphone and speech recognition are used only when the user attaches a photo or dictates a message. When alerts are on, the app sends the iPhone's notification token to the developer's alert relay (penfold-relay) to get a ticket, and the token and ticket are stored on the user's Mac. When an alert is due, the Mac sends the token and the alert text (agent name, space and a one-line status, such as the command waiting for permission) to the relay, which only passes it on to Apple Push Notification service. The relay does not store tokens or alert text. If alerts are never allowed, no token is created and nothing reaches the relay. The demo mode uses sample data inside the app and connects nowhere.</p>
 
 <nav><a href="index.html">지원</a><a href="https://github.com/SihyunAdventure/penfold-mac">Mac 설치 스크립트</a></nav>
 </main></body></html>

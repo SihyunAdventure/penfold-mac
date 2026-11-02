@@ -51,7 +51,7 @@ flowchart LR
 
 - 間に **Penfold のサーバーはありません。** iPhone は自分の Tailscale ネットワーク経由で、SSH で Mac に直接つながります。
 - SSH 鍵は iPhone 上で作成され、キーチェーンに保管されます。Mac のホスト鍵はペアリング時に固定され、変わった場合は接続を拒否します。
-- 端末の外に出るのは通知だけです。Mac が Apple Push Notification service で送ります(Mac にプッシュ用の鍵がない場合は、何も保存しない小さな中継を経由します)。
+- 端末の外に出るのは通知だけです。Mac が Penfold の小さな中継サーバーに渡し、中継サーバーは何も保存せずに Apple Push Notification service へ転送します。
 
 ## 必要なもの
 

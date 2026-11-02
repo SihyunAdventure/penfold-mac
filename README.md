@@ -49,7 +49,7 @@ flowchart LR
 
 - There is **no Penfold server** in the middle. The iPhone talks to your Mac directly over SSH, through your own Tailscale network.
 - The SSH key is created on the iPhone and kept in its Keychain. The Mac's host key is pinned at pairing; if it changes, Penfold refuses to connect.
-- The only thing that leaves your devices is the alert: the Mac sends it through Apple Push Notification service (via a small relay that stores nothing, when the Mac has no push key of its own).
+- The only thing that leaves your devices is the alert: your Mac hands it to Penfold's small relay, which passes it on to Apple Push Notification service and stores nothing.
 
 ## What you need
 
