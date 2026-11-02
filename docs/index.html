@@ -3,15 +3,69 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Penfold 지원</title><link rel="stylesheet" href="style.css">
+<meta name="description" content="Mac에서 일하는 코딩 에이전트(Claude Code, Codex)를 iPhone에서 보고, 답하고, 새로 시작하는 앱">
+<link rel="alternate" hreflang="ko" href="https://sihyunadventure.github.io/penfold-mac/">
+<link rel="alternate" hreflang="en" href="https://sihyunadventure.github.io/penfold-mac/en.html">
+<link rel="alternate" hreflang="ja" href="https://sihyunadventure.github.io/penfold-mac/ja.html">
+<link rel="alternate" hreflang="zh-Hans" href="https://sihyunadventure.github.io/penfold-mac/zh.html">
 </head>
 <body><main>
 <header><img src="icon.png" alt=""><h1>Penfold</h1></header>
-<p>Penfold는 내 Mac에서 돌아가는 코딩 에이전트(Claude Code, Codex)를 iPhone에서 보고, 답하고, 새로 시작하는 앱이에요. 에이전트는 Mac의 <a href="https://herdr.dev">Herdr</a>에서 돌아가고, iPhone은 Tailscale을 거쳐 SSH로 Mac에 직접 연결해요.</p>
+<nav class="langs" aria-label="언어"><b>한국어</b><a href="en.html" lang="en">English</a><a href="ja.html" lang="ja">日本語</a><a href="zh.html" lang="zh-Hans">简体中文</a></nav>
+
+<p class="lead">Mac에서 일하는 코딩 에이전트(Claude Code, Codex)를 iPhone에서 보고, 답하고, 새로 시작해요.</p>
+<p>에이전트는 책상 위 Mac에서 계속 일하게 두고, 어떤 게 끝났는지, 어떤 게 내 답을 기다리는지 폰으로 보고 그 자리에서 답해요. iPhone은 Tailscale을 거쳐 SSH로 Mac에 직접 연결해요.</p>
+<p class="status">iPhone 앱은 App Store 출시를 준비하고 있어요.</p>
+
+<div class="shots">
+<figure><img src="images/01-overview.jpg" alt="스페이스별 에이전트 목록. 권한 요청이 필요한 에이전트가 강조돼 있다." loading="lazy"><figcaption>모든 에이전트를 한눈에</figcaption></figure>
+<figure><img src="images/02-chat.jpg" alt="채팅 뷰. 고친 파일이 카드로, 표가 표로 보인다." loading="lazy"><figcaption>터미널 대신 대화로</figcaption></figure>
+<figure><img src="images/03-approval.jpg" alt="권한 요청 카드와 세 가지 선택지" loading="lazy"><figcaption>권한 요청은 카드 한 번에</figcaption></figure>
+<figure><img src="images/04-working.jpg" alt="작업 중인 에이전트와 실행 중인 명령" loading="lazy"><figcaption>지금 무엇을 하는지</figcaption></figure>
+<figure><img src="images/05-model.jpg" alt="모델 선택 시트: Fable, Opus, Sonnet, Haiku와 생각 강도" loading="lazy"><figcaption>모델과 생각 강도도 폰에서</figcaption></figure>
+</div>
+
 <p class="note"><b>Herdr 전용이에요.</b> Penfold는 <a href="https://herdr.dev">Herdr</a> 안에서 실행한 에이전트만 보여요. 터미널 앱이나 iTerm에서 바로 띄운 <code>claude</code>·<code>codex</code>는 보이지 않으니, Herdr의 탭에서 시작하거나 Penfold의 ＋로 새로 시작하세요. macOS 전용이고, Mac이 켜져 있어야 해요.</p>
 
+<h2>할 수 있는 것</h2>
+<div class="features">
+<div><b>답이 필요한 걸 먼저</b>스페이스별로 묶고, 기다리는 에이전트는 몇 분째인지까지 보여요.</div>
+<div><b>채팅처럼 읽기</b>도구 호출은 한 줄로 접히고, 고친 파일은 +추가 −삭제 카드로 보여요.</div>
+<div><b>권한 요청에 바로 답하기</b>선택지를 눌러 답해요. Mac 앞에 없어도 돼요.</div>
+<div><b>알림</b>에이전트가 답을 기다리거나 끝나면 iPhone으로 알려요.</div>
+<div><b>새 작업 시작</b>Mac 폴더를 고르고 버튼 하나로 Claude Code나 Codex를 시작해요.</div>
+<div><b>사진·파일·음성</b>붙여서 보내고, 한글은 자모가 쪼개지지 않게 보내요.</div>
+</div>
+
+<h2>어떻게 연결되나요</h2>
+<div class="flow"><span>iPhone · Penfold</span><i>→ Tailscale + SSH →</i><span>내 Mac</span><i>→</i><span>Herdr</span><i>→</i><span>Claude Code / Codex</span></div>
+<p>중간에 Penfold 서버가 없어요. SSH 키는 iPhone에서 만들어 Keychain에 두고, Mac의 호스트 키는 연결할 때 고정해요.</p>
+
+<h2>준비물</h2>
+<ul>
+<li>자리를 비울 때도 깨어 있는 Mac(macOS) — 전원에 연결해 두세요</li>
+<li><a href="https://herdr.dev">Herdr</a>, 그리고 설치·로그인된 Claude Code 또는 Codex</li>
+<li>Mac과 iPhone 둘 다 <a href="https://tailscale.com">Tailscale</a>, 같은 계정</li>
+</ul>
+
 <h2>Mac 준비</h2>
-<p>Mac 터미널에 아래 한 줄을 붙여 넣으세요. Tailscale, 원격 로그인, Herdr를 하나씩 확인하고 없는 건 설치를 도와요. 끝나면 연결용 QR이 떠요.</p>
-<p><code>curl -fsSL https://raw.githubusercontent.com/SihyunAdventure/penfold-mac/main/setup | zsh</code></p>
+<p>Mac 터미널에 아래 한 줄을 붙여 넣으세요. 하나씩 확인하고 없는 건 설치를 도와요(설치 전에는 항상 물어봐요).</p>
+<pre><code>curl -fsSL https://raw.githubusercontent.com/SihyunAdventure/penfold-mac/main/setup | zsh</code></pre>
+<ol>
+<li>개발자 도구(python3)</li>
+<li>Tailscale — 설치·로그인·켜기</li>
+<li>원격 로그인(SSH)</li>
+<li>Herdr, 그리고 Claude Code나 Codex 확인</li>
+<li>알림 — 에이전트가 일하는 동안 Mac이 잠들지 않게 해요</li>
+<li>iPhone 연결 — 터미널에 QR이 떠요</li>
+</ol>
+
+<h2>iPhone 연결</h2>
+<ol>
+<li>iPhone에서 Tailscale을 켜요.</li>
+<li>Mac 터미널의 QR을 iPhone 기본 카메라로 찍어요.</li>
+<li>Penfold가 열리면 <b>연결</b>을 눌러요.</li>
+</ol>
 <p>Mac이 없다면 앱 첫 화면의 <b>Mac 없이 둘러보기</b>로 모든 화면을 예시와 함께 써 볼 수 있어요.</p>
 
 <h2>자주 묻는 것</h2>
@@ -22,9 +76,6 @@
 
 <h2>문의</h2>
 <p>문제나 제안은 <a href="https://github.com/SihyunAdventure/penfold-mac/issues">GitHub Issues</a>에 남겨 주세요.</p>
-
-<h2 lang="en">Support (English)</h2>
-<p lang="en">Penfold lets you watch, answer and start the coding agents (Claude Code, Codex) running on your own Mac from your iPhone. <b>It works with Herdr only:</b> it shows agents running inside <a href="https://herdr.dev">Herdr</a>, not ones started straight from Terminal or iTerm. macOS only; the Mac has to be awake. Run the setup line above in the Mac's Terminal; it walks through Tailscale, Remote Login and Herdr and ends with a pairing QR. No Mac? Tap <b>Mac 없이 둘러보기</b> (Try without a Mac) on the first screen. Questions: <a href="https://github.com/SihyunAdventure/penfold-mac/issues">GitHub Issues</a>.</p>
 
 <nav><a href="privacy.html">개인정보처리방침</a><a href="https://github.com/SihyunAdventure/penfold-mac">Mac 설치 스크립트</a></nav>
 </main></body></html>

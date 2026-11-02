@@ -12,3 +12,20 @@ a { color: var(--accent); }
 code { background: var(--line); padding: 2px 6px; border-radius: 6px; font-size: 15px; word-break: break-all; }
 nav { display: flex; gap: 18px; font-size: 15px; margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--line); }
 .note { border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 10px; padding: 12px 14px; background: #111113; }
+.langs { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 14px; margin: -16px 0 28px; color: var(--muted); }
+.langs b { color: var(--text); font-weight: 600; }
+.lead { font-size: 19px; color: var(--text); }
+.status { color: var(--muted); font-size: 15px; }
+.shots { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; margin: 28px -20px; padding: 0 20px 8px; }
+.shots figure { margin: 0; flex: 0 0 200px; scroll-snap-align: start; }
+.shots img { width: 200px; height: auto; display: block; border-radius: 18px; border: 1px solid var(--line); }
+.shots figcaption { font-size: 14px; color: var(--muted); margin-top: 8px; line-height: 1.4; }
+.features { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 12px 0; }
+.features div { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; background: #111113; font-size: 15px; line-height: 1.55; color: var(--muted); }
+.features b { display: block; color: var(--text); font-size: 16px; margin-bottom: 4px; }
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 12px 0; font-size: 15px; }
+.flow span { border: 1px solid var(--line); border-radius: 10px; padding: 6px 12px; background: #111113; }
+.flow i { color: var(--muted); font-style: normal; }
+ol { padding-left: 22px; } li { margin: 4px 0; }
+pre { background: var(--line); padding: 12px 14px; border-radius: 10px; overflow-x: auto; font-size: 14px; }
+pre code { background: none; padding: 0; word-break: normal; }

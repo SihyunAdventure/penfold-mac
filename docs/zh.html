@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Penfold 支持</title><link rel="stylesheet" href="style.css">
+<meta name="description" content="在 iPhone 上查看、回复、启动你 Mac 上的编程智能体(Claude Code、Codex)">
+<link rel="alternate" hreflang="ko" href="https://sihyunadventure.github.io/penfold-mac/">
+<link rel="alternate" hreflang="en" href="https://sihyunadventure.github.io/penfold-mac/en.html">
+<link rel="alternate" hreflang="ja" href="https://sihyunadventure.github.io/penfold-mac/ja.html">
+<link rel="alternate" hreflang="zh-Hans" href="https://sihyunadventure.github.io/penfold-mac/zh.html">
+</head>
+<body><main>
+<header><img src="icon.png" alt=""><h1>Penfold</h1></header>
+<nav class="langs" aria-label="语言"><a href="./" lang="ko">한국어</a><a href="en.html" lang="en">English</a><a href="ja.html" lang="ja">日本語</a><b>简体中文</b></nav>
+
+<p class="lead">在 iPhone 上查看、回复、启动你 Mac 上的编程智能体(Claude Code、Codex)。</p>
+<p>让智能体在桌上的 Mac 里继续工作,用手机看到哪些已经完成、哪些在等你回复,并随时随地回复。iPhone 通过 Tailscale,用 SSH 直接连接你的 Mac。</p>
+<p class="status">iPhone 应用正在准备上架 App Store。截图为韩语版,应用界面支持韩语和英语。</p>
+
+<div class="shots">
+<figure><img src="images/01-overview.jpg" alt="按空间分组的智能体列表,等待权限的智能体被突出显示" loading="lazy"><figcaption>所有智能体一目了然</figcaption></figure>
+<figure><img src="images/02-chat.jpg" alt="聊天视图,显示修改文件卡片和表格" loading="lazy"><figcaption>用对话代替终端</figcaption></figure>
+<figure><img src="images/03-approval.jpg" alt="带三个选项的权限请求卡片" loading="lazy"><figcaption>权限请求一点即答</figcaption></figure>
+<figure><img src="images/04-working.jpg" alt="正在工作的智能体及其正在运行的命令" loading="lazy"><figcaption>实时看到它在做什么</figcaption></figure>
+<figure><img src="images/05-model.jpg" alt="模型选择:Fable、Opus、Sonnet、Haiku 以及思考强度" loading="lazy"><figcaption>在手机上切换模型和思考强度</figcaption></figure>
+</div>
+
+<p class="note"><b>仅支持 Herdr。</b> Penfold 只显示在 <a href="https://herdr.dev">Herdr</a> 中运行的智能体,直接在“终端”或 iTerm 里启动的 <code>claude</code>、<code>codex</code> 不会显示。请在 Herdr 标签页中启动,或使用 Penfold 的 ＋。仅支持 macOS,且 Mac 需要保持唤醒。</p>
+
+<h2>功能</h2>
+<div class="features">
+<div><b>优先显示需要你的</b>按空间分组,并标出每个智能体已等待多久。</div>
+<div><b>像聊天一样阅读</b>工具调用折叠成一行,修改的文件显示为 +新增 −删除 卡片。</div>
+<div><b>直接回复权限请求</b>点一下选项即可,不必守在 Mac 前。</div>
+<div><b>通知</b>智能体等待回复或完成工作时通知你的 iPhone。</div>
+<div><b>开始新工作</b>选择 Mac 上的文件夹,一个按钮启动 Claude Code 或 Codex。</div>
+<div><b>照片、文件、语音</b>可附加或语音输入。输入法文字确认后整段发送。</div>
+</div>
+
+<h2>工作原理</h2>
+<div class="flow"><span>iPhone · Penfold</span><i>→ Tailscale + SSH →</i><span>你的 Mac</span><i>→</i><span>Herdr</span><i>→</i><span>Claude Code / Codex</span></div>
+<p>中间没有 Penfold 服务器。SSH 密钥在 iPhone 上生成并保存在钥匙串中,Mac 的主机密钥在配对时固定。</p>
+
+<h2>准备条件</h2>
+<ul>
+<li>一台在你离开时也保持唤醒的 Mac(macOS)——请接上电源</li>
+<li><a href="https://herdr.dev">Herdr</a>,以及已安装并登录的 Claude Code 或 Codex</li>
+<li>Mac 和 iPhone 都安装 <a href="https://tailscale.com">Tailscale</a>,并使用同一账号</li>
+</ul>
+
+<h2>准备 Mac</h2>
+<p>在 Mac 的终端中粘贴下面这一行。它会逐步检查,并帮你安装缺少的内容(安装前总会先询问)。提示信息为韩语或英语。</p>
+<pre><code>curl -fsSL https://raw.githubusercontent.com/SihyunAdventure/penfold-mac/main/setup | zsh</code></pre>
+<ol>
+<li>开发者工具(python3)</li>
+<li>Tailscale —— 安装、登录、开启</li>
+<li>远程登录(SSH)</li>
+<li>Herdr,并检查 Claude Code 或 Codex</li>
+<li>通知 —— 智能体工作期间让 Mac 保持唤醒</li>
+<li>配对 —— 终端中会显示二维码</li>
+</ol>
+
+<h2>连接 iPhone</h2>
+<ol>
+<li>在 iPhone 上开启 Tailscale。</li>
+<li>用 iPhone 自带的相机扫描 Mac 终端中的二维码。</li>
+<li>Penfold 打开后点 <b>Connect</b>。</li>
+</ol>
+<p>没有 Mac?在首屏点 <b>Try without a Mac</b>,即可用示例智能体体验所有界面。</p>
+
+<h2>常见问题</h2>
+<p><b>列表里没有我的智能体。</b> 只显示在 Herdr 中运行的智能体。请在 Herdr 标签页中重新启动。Mac 上需要安装并登录 Claude Code 或 Codex。</p>
+<p><b>连不上 Mac。</b> 确认两台设备都开启了 Tailscale 且使用同一账号,并且 Mac 没有睡眠。Settings › Connection status 会显示卡在哪一步。</p>
+<p><b>收不到通知。</b> 在 Settings › Alerts 中检查本机是否允许通知、Mac 的通知守护进程以及注册状态,然后发送一条测试通知。</p>
+<p><b>我的代码或对话会被发送到别处吗?</b> 不会。应用只与你自己的 Mac 通信。详见<a href="privacy.html">隐私政策</a>。</p>
+
+<h2>反馈</h2>
+<p>问题、故障或建议,请提交到 <a href="https://github.com/SihyunAdventure/penfold-mac/issues">GitHub Issues</a>。</p>
+
+<nav><a href="privacy.html">隐私政策</a><a href="https://github.com/SihyunAdventure/penfold-mac">Mac 安装脚本</a></nav>
+</main></body></html>

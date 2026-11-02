@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Penfold Support</title><link rel="stylesheet" href="style.css">
+<meta name="description" content="Watch, answer and start the coding agents (Claude Code, Codex) on your Mac from your iPhone">
+<link rel="alternate" hreflang="ko" href="https://sihyunadventure.github.io/penfold-mac/">
+<link rel="alternate" hreflang="en" href="https://sihyunadventure.github.io/penfold-mac/en.html">
+<link rel="alternate" hreflang="ja" href="https://sihyunadventure.github.io/penfold-mac/ja.html">
+<link rel="alternate" hreflang="zh-Hans" href="https://sihyunadventure.github.io/penfold-mac/zh.html">
+</head>
+<body><main>
+<header><img src="icon.png" alt=""><h1>Penfold</h1></header>
+<nav class="langs" aria-label="Language"><a href="./" lang="ko">한국어</a><b>English</b><a href="ja.html" lang="ja">日本語</a><a href="zh.html" lang="zh-Hans">简体中文</a></nav>
+
+<p class="lead">Watch, answer and start the coding agents (Claude Code, Codex) on your Mac — from your iPhone.</p>
+<p>Leave the agents working at your desk. Penfold shows which ones are done and which are waiting for you, and lets you reply from wherever you are. The iPhone connects to your Mac directly over SSH, through Tailscale.</p>
+<p class="status">The iPhone app is getting ready for the App Store. Screenshots show the Korean version; the app is in English and Korean.</p>
+
+<div class="shots">
+<figure><img src="images/01-overview.jpg" alt="Agents grouped by space; one waiting for permission is highlighted" loading="lazy"><figcaption>All agents at a glance</figcaption></figure>
+<figure><img src="images/02-chat.jpg" alt="Chat view with an edited-file card and a table" loading="lazy"><figcaption>A chat, not a terminal</figcaption></figure>
+<figure><img src="images/03-approval.jpg" alt="Permission request card with three options" loading="lazy"><figcaption>Permission requests in one tap</figcaption></figure>
+<figure><img src="images/04-working.jpg" alt="An agent at work with its running command" loading="lazy"><figcaption>See what it's doing right now</figcaption></figure>
+<figure><img src="images/05-model.jpg" alt="Model picker: Fable, Opus, Sonnet, Haiku, and thinking effort" loading="lazy"><figcaption>Model and effort from your phone</figcaption></figure>
+</div>
+
+<p class="note"><b>Works with Herdr only.</b> Penfold shows agents running inside <a href="https://herdr.dev">Herdr</a>, not ones started straight from Terminal or iTerm. Start them in a Herdr tab or with the ＋ button in Penfold. macOS only; the Mac has to be awake.</p>
+
+<h2>What you can do</h2>
+<div class="features">
+<div><b>What needs you, first</b>Agents grouped by space, with how long each has been waiting.</div>
+<div><b>Read it like a chat</b>Tool calls fold into one line; edited files show as +added −removed cards.</div>
+<div><b>Answer permission requests</b>Tap an option. No need to be at the Mac.</div>
+<div><b>Alerts</b>Your iPhone hears when an agent needs you or finishes.</div>
+<div><b>Start new work</b>Pick a Mac folder and start Claude Code or Codex with one button.</div>
+<div><b>Photos, files, voice</b>Attach them, or dictate. IME text is sent whole, so characters never break apart.</div>
+</div>
+
+<h2>How it works</h2>
+<div class="flow"><span>iPhone · Penfold</span><i>→ Tailscale + SSH →</i><span>Your Mac</span><i>→</i><span>Herdr</span><i>→</i><span>Claude Code / Codex</span></div>
+<p>There's no Penfold server in the middle. The SSH key is created on the iPhone and kept in its Keychain; the Mac's host key is pinned when you pair.</p>
+
+<h2>What you need</h2>
+<ul>
+<li>A Mac (macOS) that stays awake while you're away — keep it plugged in</li>
+<li><a href="https://herdr.dev">Herdr</a>, plus Claude Code or Codex installed and logged in</li>
+<li><a href="https://tailscale.com">Tailscale</a> on both the Mac and the iPhone, same account</li>
+</ul>
+
+<h2>Set up the Mac</h2>
+<p>Paste this into the Mac's Terminal. It checks one step at a time and helps install what's missing (it always asks first).</p>
+<pre><code>curl -fsSL https://raw.githubusercontent.com/SihyunAdventure/penfold-mac/main/setup | zsh</code></pre>
+<ol>
+<li>Developer tools (python3)</li>
+<li>Tailscale — install, log in, turn on</li>
+<li>Remote Login (SSH)</li>
+<li>Herdr, and a check for Claude Code or Codex</li>
+<li>Alerts — keeps the Mac awake while agents work</li>
+<li>Pairing — a QR code appears in Terminal</li>
+</ol>
+
+<h2>Pair your iPhone</h2>
+<ol>
+<li>Turn on Tailscale on the iPhone.</li>
+<li>Scan the QR in the Mac's Terminal with the iPhone's Camera app.</li>
+<li>Penfold opens — tap <b>Connect</b>.</li>
+</ol>
+<p>No Mac? Tap <b>Try without a Mac</b> on the first screen to try every screen with sample agents.</p>
+
+<h2>FAQ</h2>
+<p><b>My agent isn't in the list.</b> Only agents running inside Herdr show up. Restart it in a Herdr tab. Claude Code or Codex has to be installed and logged in on the Mac.</p>
+<p><b>Penfold can't reach the Mac.</b> Check that Tailscale is on on both devices with the same account, and that the Mac isn't asleep. Settings › Connection status shows which step is failing.</p>
+<p><b>No alerts.</b> In Settings › Alerts, check that this iPhone is allowed, the Mac's alert daemon is running and the device is registered, then send a test alert.</p>
+<p><b>Do my code or conversations go anywhere?</b> No. The app talks only to your Mac. See the <a href="privacy.html">privacy policy</a>.</p>
+
+<h2>Contact</h2>
+<p>Questions, problems or ideas: <a href="https://github.com/SihyunAdventure/penfold-mac/issues">GitHub Issues</a>.</p>
+
+<nav><a href="privacy.html">Privacy policy</a><a href="https://github.com/SihyunAdventure/penfold-mac">Mac setup scripts</a></nav>
+</main></body></html>

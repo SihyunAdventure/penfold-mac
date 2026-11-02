@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Penfold サポート</title><link rel="stylesheet" href="style.css">
+<meta name="description" content="Mac で動くコーディングエージェント(Claude Code、Codex)を iPhone から確認・返信・新規起動">
+<link rel="alternate" hreflang="ko" href="https://sihyunadventure.github.io/penfold-mac/">
+<link rel="alternate" hreflang="en" href="https://sihyunadventure.github.io/penfold-mac/en.html">
+<link rel="alternate" hreflang="ja" href="https://sihyunadventure.github.io/penfold-mac/ja.html">
+<link rel="alternate" hreflang="zh-Hans" href="https://sihyunadventure.github.io/penfold-mac/zh.html">
+</head>
+<body><main>
+<header><img src="icon.png" alt=""><h1>Penfold</h1></header>
+<nav class="langs" aria-label="言語"><a href="./" lang="ko">한국어</a><a href="en.html" lang="en">English</a><b>日本語</b><a href="zh.html" lang="zh-Hans">简体中文</a></nav>
+
+<p class="lead">Mac で動くコーディングエージェント(Claude Code、Codex)を、iPhone から確認・返信・新規起動。</p>
+<p>エージェントは机の上の Mac で働かせたまま、どれが終わったか、どれが返事を待っているかをスマホで確認し、その場で返信できます。iPhone は Tailscale 経由で、SSH で Mac に直接つながります。</p>
+<p class="status">iPhone アプリは App Store での公開を準備中です。スクリーンショットは韓国語版で、アプリの表示言語は韓国語と英語です。</p>
+
+<div class="shots">
+<figure><img src="images/01-overview.jpg" alt="スペースごとのエージェント一覧。権限を待っているエージェントが強調されている" loading="lazy"><figcaption>すべてのエージェントをひと目で</figcaption></figure>
+<figure><img src="images/02-chat.jpg" alt="チャット表示。変更ファイルのカードと表" loading="lazy"><figcaption>ターミナルではなく会話で</figcaption></figure>
+<figure><img src="images/03-approval.jpg" alt="3 つの選択肢がある権限リクエストのカード" loading="lazy"><figcaption>権限リクエストはタップするだけ</figcaption></figure>
+<figure><img src="images/04-working.jpg" alt="作業中のエージェントと実行中のコマンド" loading="lazy"><figcaption>いま何をしているか</figcaption></figure>
+<figure><img src="images/05-model.jpg" alt="モデル選択: Fable、Opus、Sonnet、Haiku と思考の強さ" loading="lazy"><figcaption>モデルと思考の強さもスマホから</figcaption></figure>
+</div>
+
+<p class="note"><b>Herdr 専用です。</b> Penfold に表示されるのは <a href="https://herdr.dev">Herdr</a> の中で起動したエージェントだけです。ターミナル.app や iTerm で直接起動した <code>claude</code>・<code>codex</code> は表示されません。Herdr のタブか Penfold の ＋ から起動してください。macOS 専用で、Mac が起きている必要があります。</p>
+
+<h2>できること</h2>
+<div class="features">
+<div><b>返事が必要なものを先に</b>スペースごとにまとめ、何分待っているかも表示します。</div>
+<div><b>チャットとして読める</b>ツール呼び出しは 1 行にまとまり、変更ファイルは +追加 −削除 のカードで表示。</div>
+<div><b>権限リクエストに即答</b>選択肢をタップするだけ。Mac の前にいなくても大丈夫。</div>
+<div><b>通知</b>エージェントが返事を待っているときや終わったときに知らせます。</div>
+<div><b>新しい作業を始める</b>Mac のフォルダを選び、ボタンひとつで Claude Code や Codex を起動。</div>
+<div><b>写真・ファイル・音声</b>添付や音声入力に対応。IME の文字は確定してからまとめて送ります。</div>
+</div>
+
+<h2>仕組み</h2>
+<div class="flow"><span>iPhone · Penfold</span><i>→ Tailscale + SSH →</i><span>自分の Mac</span><i>→</i><span>Herdr</span><i>→</i><span>Claude Code / Codex</span></div>
+<p>間に Penfold のサーバーはありません。SSH 鍵は iPhone 上で作成してキーチェーンに保管し、Mac のホスト鍵はペアリング時に固定します。</p>
+
+<h2>必要なもの</h2>
+<ul>
+<li>席を離れている間も起きている Mac(macOS)— 電源につないでおいてください</li>
+<li><a href="https://herdr.dev">Herdr</a> と、インストール・ログイン済みの Claude Code または Codex</li>
+<li>Mac と iPhone の両方に <a href="https://tailscale.com">Tailscale</a>(同じアカウント)</li>
+</ul>
+
+<h2>Mac の準備</h2>
+<p>Mac のターミナルに次の 1 行を貼り付けてください。1 ステップずつ確認し、足りないものはインストールを手伝います(インストール前に必ず確認します)。メッセージは韓国語か英語で表示されます。</p>
+<pre><code>curl -fsSL https://raw.githubusercontent.com/SihyunAdventure/penfold-mac/main/setup | zsh</code></pre>
+<ol>
+<li>開発者ツール(python3)</li>
+<li>Tailscale — インストール・ログイン・オン</li>
+<li>リモートログイン(SSH)</li>
+<li>Herdr と、Claude Code または Codex の確認</li>
+<li>通知 — エージェントの作業中は Mac をスリープさせません</li>
+<li>ペアリング — ターミナルに QR コードが表示されます</li>
+</ol>
+
+<h2>iPhone をつなぐ</h2>
+<ol>
+<li>iPhone で Tailscale をオンにします。</li>
+<li>Mac のターミナルの QR を iPhone のカメラで読み取ります。</li>
+<li>Penfold が開いたら <b>Connect</b> をタップします。</li>
+</ol>
+<p>Mac がなくても、最初の画面の <b>Try without a Mac</b> で、すべての画面をサンプルで試せます。</p>
+
+<h2>よくある質問</h2>
+<p><b>エージェントが一覧に出てきません。</b> 表示されるのは Herdr の中で起動したものだけです。Herdr のタブで起動し直してください。Mac に Claude Code か Codex がインストール・ログインされている必要があります。</p>
+<p><b>Mac につながりません。</b> 両方の端末で Tailscale がオンで同じアカウントか、Mac がスリープしていないかを確認してください。Settings › Connection status で、どの段階で止まっているかがわかります。</p>
+<p><b>通知が来ません。</b> Settings › Alerts で、この iPhone の許可、Mac の通知デーモン、登録状態を確認し、テスト通知を送ってみてください。</p>
+<p><b>コードや会話がどこかに送られますか?</b> いいえ。アプリは自分の Mac とだけ通信します。詳しくは<a href="privacy.html">プライバシーポリシー</a>をご覧ください。</p>
+
+<h2>お問い合わせ</h2>
+<p>質問・不具合・アイデアは <a href="https://github.com/SihyunAdventure/penfold-mac/issues">GitHub Issues</a> へどうぞ。</p>
+
+<nav><a href="privacy.html">プライバシーポリシー</a><a href="https://github.com/SihyunAdventure/penfold-mac">Mac セットアップスクリプト</a></nav>
+</main></body></html>
