@@ -191,9 +191,18 @@ status=$?
 if ((status == 0)); then
   print -r -- ""
   print -r -- "${green}${bold}준비 끝!${off} 이제 iPhone에서 에이전트가 보여요."
-  if pmset -g 2>/dev/null | awk '$1 == "sleep" { exit !($2 != 0) }'; then
-    note "팁: Mac이 잠자기에 들어가면 iPhone에서 닿지 않아요. 자리를 비울 땐 전원에 연결하고"
-    note "     시스템 설정 › 배터리(또는 에너지)에서 '자동으로 잠자기 방지'를 켜 두세요."
+  # A sleeping Mac can't be reached. penfold-push keeps it up while an agent works; plugged in,
+  # it can stay up altogether (needs the admin password, so only when asked).
+  ac_sleep=$(pmset -g custom 2>/dev/null | awk '/AC Power/ { ac = 1 } ac && $1 == "sleep" { print $2; exit }')
+  if [[ -n "$ac_sleep" && "$ac_sleep" != 0 ]]; then
+    print -r -- ""
+    note "Mac이 잠자기에 들어가면 iPhone에서 닿지 않아요. 에이전트가 일하는 동안은 penfold-push가 깨워 두지만,"
+    note "쉬는 동안에도 닿으려면 전원 연결 중엔 잠자기를 끄는 게 좋아요. (화면은 꺼져도 돼요)"
+    if ask "전원에 연결돼 있을 때 잠자기를 끌까요? (관리자 암호가 필요해요)"; then
+      sudo pmset -c sleep 0 && ok "전원 연결 중엔 잠들지 않아요" || fail "바꾸지 못했어요. 시스템 설정 › 배터리 › 옵션에서 바꿀 수 있어요."
+    else
+      note "나중에: sudo pmset -c sleep 0  (되돌리기: sudo pmset -c sleep 1)"
+    fi
   fi
 fi
 exit $status

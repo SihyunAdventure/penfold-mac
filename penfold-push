@@ -10,6 +10,10 @@ The ticket is what the relay checks: it forwards only alerts whose ticket matche
   penfold-push [--key-id X --team T --key PATH]   (defaults: this Mac's team key, below)
   penfold-push --test                             one test alert to every device, then exit
 
+While an agent works or waits for an answer it keeps the Mac from idle sleep (`caffeinate -i`),
+so a job left running doesn't stop halfway and the phone can still reach the Mac. A closed lid on
+battery still sleeps; that's macOS's call.
+
 Runs under launchd (mac/co.notique.penfold-push.plist). Standard library only: the JWT is signed
 with `openssl`, sent with `curl --http2`, and never printed or put on a command line.
 """
@@ -150,7 +154,28 @@ def alert(terminal, before, after):
     return None
 
 
-def follow(apns):
+class Awake:
+    """Holds `caffeinate -i` while any agent is busy (working, or blocked on an answer)."""
+
+    BUSY = ("working", "blocked")
+
+    def __init__(self, start=None):
+        self.start = start or (lambda: subprocess.Popen(["/usr/bin/caffeinate", "-i", "-w", str(os.getpid())],
+                                                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL))
+        self.process = None
+
+    def update(self, terminals):
+        busy = any((t.get("status") or {}).get("state") in self.BUSY for t in terminals.values())
+        if busy and self.process is None:
+            self.process = self.start()
+            log("keeping the Mac awake while agents work")
+        elif not busy and self.process is not None:
+            self.process.terminate()
+            self.process = None
+            log("letting the Mac sleep again")
+
+
+def follow(apns, awake):
     terminals, sent = {}, {}
     process = subprocess.Popen([HC, "events", "--json"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
     log("following hc events")
@@ -164,6 +189,7 @@ def follow(apns):
             # A snapshot: the state to compare against, nothing to announce.
             records = message.get("terminals") or params.get("terminals") or []
             terminals = {t["address"]: t for t in records if isinstance(t, dict) and "address" in t}
+            awake.update(terminals)
             continue
         if message.get("method") != "event":
             continue
@@ -173,6 +199,7 @@ def follow(apns):
             continue
         if kind == "removed":
             terminals.pop(address, None)
+            awake.update(terminals)
             continue
         terminal = terminals.get(address)
         if terminal is None:
@@ -185,6 +212,7 @@ def follow(apns):
             before = (terminal.get("status") or {}).get("state")
             terminal["status"] = data.get("status")
             after = (terminal.get("status") or {}).get("state")
+            awake.update(terminals)
             said = alert(terminal, before, after)
             if not said:
                 continue
@@ -216,11 +244,11 @@ def main():
             return 1
         deliver(apns, {"aps": {"alert": {"title": "Penfold", "body": "푸시가 연결됐어요"}, "sound": "default"}})
         return 0
-    backoff = 1
+    backoff, awake = 1, Awake()
     while True:
         started = time.time()
         try:
-            follow(apns)
+            follow(apns, awake)
         except Exception as error:  # keep going; launchd restarts us only if we exit
             log("error", type(error).__name__)
         backoff = 1 if time.time() - started > 60 else min(backoff * 2, 60)
