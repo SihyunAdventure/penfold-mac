@@ -28,3 +28,24 @@ curl -fsSL https://raw.githubusercontent.com/SihyunAdventure/penfold-mac/main/se
 macOS 전용이에요. Mac이 잠자기에 들어가면 iPhone에서 닿지 않으니, 자리를 비울 땐 전원에 연결해 두세요.
 
 Homebrew는 필요 없어요. QR은 macOS 기본 기능(Core Image)으로 그려요.
+
+## English
+
+Penfold is an iPhone app for watching, answering and starting the coding agents (Claude Code, Codex) on your own Mac. **It works with [Herdr](https://herdr.dev) only:** it shows agents running inside Herdr, not ones started straight from Terminal or iTerm. macOS only.
+
+Paste this into the Mac's Terminal:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/SihyunAdventure/penfold-mac/main/setup | zsh
+```
+
+It downloads to `~/.penfold` and checks, one step at a time (asking before it installs anything):
+
+1. Developer tools (python3)
+2. Tailscale — install, log in, turn on
+3. Remote Login (SSH)
+4. Herdr (herdr-core `hc` and the Herdr app), and that Claude Code or Codex is installed — install and log in to those yourself
+5. Alerts — tells your iPhone when an agent needs you or finishes (through penfold-relay to Apple Push); keeps the Mac awake while agents work
+6. Pairing — scan the QR in Terminal with your iPhone camera
+
+Running it again is safe; finished steps are only checked. `~/.penfold/setup --check` reports without changing anything, `~/.penfold/penfold-pair` shows the QR again. A sleeping Mac can't be reached, so keep it plugged in when you're away. Messages follow the Mac's language (`PENFOLD_LANG=en` to force English).

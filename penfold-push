@@ -27,6 +27,7 @@ HOSTS = {"sandbox": "api.sandbox.push.apple.com", "production": "api.push.apple.
 RELAY = "https://penfold-relay.vercel.app/api/push"
 KEY_DIR = "~/.config/" + "secrets/apns"
 KINDS = {"permission": "권한 요청", "question": "질문", "auth": "로그인 필요"}
+KINDS_EN = {"permission": "Permission", "question": "Question", "auth": "Login needed"}
 QUIET_SECONDS = 20  # the same alert for the same agent, at most this often
 
 
@@ -123,11 +124,13 @@ def devices():
 
 
 def deliver(apns, payload, collapse=None):
+    """`payload` is the alert, or a function of the device's language ("ko", "en") giving it."""
     for device in devices():
-        code, reason = apns.send(device, payload, collapse)
+        body = payload(device.get("lang") or "ko") if callable(payload) else payload
+        code, reason = apns.send(device, body, collapse)
         name = device.get("name") or os.path.basename(device["path"])
         if code == "200":
-            log("sent", name, payload["aps"]["alert"].get("title", ""))
+            log("sent", name, body["aps"]["alert"].get("title", ""))
         else:
             log("failed", name, code, reason[:200])
             if code == "410" or "BadDeviceToken" in reason or "DeviceTokenNotForTopic" in reason:
@@ -135,8 +138,10 @@ def deliver(apns, payload, collapse=None):
                 os.remove(device["path"])
 
 
-def alert(terminal, before, after):
-    """What to say when `terminal` goes from status `before` to `after`, or None."""
+def alert(terminal, before, after, lang="ko"):
+    """What to say when `terminal` goes from status `before` to `after`, or None. In the
+    phone's language (it writes "lang" with its token)."""
+    en = lang == "en"
     status = terminal.get("status") or {}
     if not status.get("app"):
         return None  # a plain shell
@@ -145,12 +150,14 @@ def alert(terminal, before, after):
     # One shape for every alert: what state at a glance and which agent (title), its space
     # (subtitle), then the one detail worth reading (body).
     if after == "blocked" and before != "blocked":
-        reason = KINDS.get(status.get("kind"), "응답 필요")
+        reason = (KINDS_EN if en else KINDS).get(status.get("kind"), "Needs you" if en else "응답 필요")
         detail = status.get("msg") or status.get("title")
+        waiting = "waiting for you" if en else "답을 기다려요"
         return "blocked", {"title": f"🙋 {title}", "subtitle": where,
-                           "body": f"{reason} · {detail}" if detail else f"{reason} · 답을 기다려요"}
+                           "body": f"{reason} · {detail}" if detail else f"{reason} · {waiting}"}
     if before == "working" and after in ("done", "idle"):
-        return "done", {"title": f"✅ {title}", "subtitle": where, "body": status.get("msg") or "작업을 마쳤어요"}
+        return "done", {"title": f"✅ {title}", "subtitle": where,
+                        "body": status.get("msg") or ("Finished" if en else "작업을 마쳤어요")}
     return None
 
 
@@ -216,13 +223,15 @@ def follow(apns, awake):
             said = alert(terminal, before, after)
             if not said:
                 continue
-            what, text = said
+            what, _ = said
             key = (address, what)
             if time.time() - sent.get(key, 0) < QUIET_SECONDS:
                 continue
             sent[key] = time.time()
-            deliver(apns, {"aps": {"alert": text, "sound": "default", "thread-id": address},
-                           "address": address}, collapse=f"{address}-{what}")
+            snapshot = dict(terminal)
+            deliver(apns, lambda lang: {"aps": {"alert": alert(snapshot, before, after, lang)[1], "sound": "default",
+                                                "thread-id": address}, "address": address},
+                    collapse=f"{address}-{what}")
     process.wait()
 
 
@@ -242,7 +251,8 @@ def main():
         if not devices():
             log("no devices in", DEVICES, "- open the app once")
             return 1
-        deliver(apns, {"aps": {"alert": {"title": "Penfold", "body": "푸시가 연결됐어요"}, "sound": "default"}})
+        deliver(apns, lambda lang: {"aps": {"alert": {"title": "Penfold", "body": "Alerts are on" if lang == "en" else "푸시가 연결됐어요"},
+                                            "sound": "default"}})
         return 0
     backoff, awake = 1, Awake()
     while True:

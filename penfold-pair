@@ -43,6 +43,23 @@ function run(argv) {
 """
 
 
+
+def korean():
+    """Same rule as setup: Korean among the Mac's languages, or set to Korea. PENFOLD_LANG overrides."""
+    if os.environ.get("PENFOLD_LANG") in ("ko", "en"):
+        return os.environ["PENFOLD_LANG"] == "ko"
+    import subprocess
+    def read(key):
+        return subprocess.run(["defaults", "read", "-g", key], capture_output=True, text=True).stdout
+    return '"ko' in read("AppleLanguages") or '-KR"' in read("AppleLanguages") or "_KR" in read("AppleLocale")
+
+
+KOREAN = korean()
+
+
+def t(ko, en):
+    return ko if KOREAN else en
+
 def tailscale_self():
     out = subprocess.run([TAILSCALE, "status", "--json"], capture_output=True, text=True, check=True).stdout
     me = json.loads(out)["Self"]
@@ -93,14 +110,15 @@ def serve(sock, token, deadline, user):
                     raise ValueError("bad key")
                 added = authorize(key, label)
                 conn.sendall((json.dumps({"ok": True, "user": user}) + "\n").encode())
-                print(f"\n✓ {peer[0]} 페어링 완료 — {'키 추가됨' if added else '이미 등록된 키'} (penfold-{label})")
+                print(t(f"\n✓ {peer[0]} 페어링 완료 — {'키 추가됨' if added else '이미 등록된 키'} (penfold-{label})",
+                        f"\n✓ Paired with {peer[0]} — {'key added' if added else 'key already registered'} (penfold-{label})"))
                 return True
             except Exception as e:  # noqa: BLE001 — any bad request just gets refused
                 try:
                     conn.sendall((json.dumps({"ok": False, "error": str(e)}) + "\n").encode())
                 except OSError:
                     pass
-                print(f"✗ {peer[0]} 거부: {e}", file=sys.stderr)
+                print(t(f"✗ {peer[0]} 거부: {e}", f"✗ Refused {peer[0]}: {e}"), file=sys.stderr)
     return False
 
 
@@ -135,7 +153,8 @@ def main():
         host, ipv4 = tailscale_self()
         host_key()
     except (OSError, subprocess.CalledProcessError, KeyError, StopIteration):
-        sys.exit("Tailscale이나 원격 로그인이 아직 준비되지 않았어요. 같은 폴더의 setup 을 먼저 실행하세요.")
+        sys.exit(t("Tailscale이나 원격 로그인이 아직 준비되지 않았어요. 같은 폴더의 setup 을 먼저 실행하세요.",
+                   "Tailscale or Remote Login isn't ready yet. Run setup in this folder first."))
     token = secrets.token_urlsafe(18)
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.bind((ipv4, 0))
@@ -153,12 +172,14 @@ def main():
         print(url, flush=True)
     else:
         print("\n".join(qr(url)), flush=True)
-    print(f"iPhone 카메라로 스캔하세요 — {host} ({ipv4}), 사용자 {args.user}"
-          f"{', 세션 ' + args.session if args.session else ''}. {args.timeout}초 뒤 닫힘.")
+    print(t(f"iPhone 카메라로 스캔하세요 — {host} ({ipv4}), 사용자 {args.user}"
+            f"{', 세션 ' + args.session if args.session else ''}. {args.timeout}초 뒤 닫힘.",
+            f"Scan with your iPhone camera — {host} ({ipv4}), user {args.user}"
+            f"{', session ' + args.session if args.session else ''}. Closes in {args.timeout}s."))
     ok = serve(sock, token, time.time() + args.timeout, args.user)
     sock.close()
     if not ok:
-        print("페어링 없이 종료했어요.", file=sys.stderr)
+        print(t("페어링 없이 종료했어요.", "Closed without pairing."), file=sys.stderr)
         sys.exit(1)
 
 

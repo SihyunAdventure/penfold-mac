@@ -9,15 +9,27 @@ set -uo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"
 
+# Korean when the Mac lists Korean among its languages or is set to Korea (many Korean users run
+# macOS in English: en-KR), English otherwise. PENFOLD_LANG=ko|en overrides.
+lang="${PENFOLD_LANG:-}"
+if [[ -z "$lang" ]]; then
+  if defaults read -g AppleLanguages 2>/dev/null | grep -q -e '"ko' -e '-KR"' || defaults read -g AppleLocale 2>/dev/null | grep -q '_KR'; then
+    lang=ko
+  else
+    lang=en
+  fi
+fi
+L() { if [[ "$lang" == ko ]]; then print -r -- "$1"; else print -r -- "$2"; fi; }
+
 # Run through curl, there's nothing beside this script: fetch the rest into ~/.penfold and
 # carry on from there, so later runs (and the push daemon) have a home.
 if [[ ! -f "$here/penfold-pair" ]]; then
   dest="$HOME/.penfold"
-  print -r -- "Penfold 파일을 ${dest/#$HOME/~} 에 내려받아요…"
+  print -r -- "$(L "Penfold 파일을 ${dest/#$HOME/~} 에 내려받아요…" "Downloading Penfold's files to ${dest/#$HOME/~}…")"
   mkdir -p "$dest"
   if ! curl -fsSL https://codeload.github.com/SihyunAdventure/penfold-mac/tar.gz/refs/heads/main \
       | tar -xz -C "$dest" --strip-components 1; then
-    print -r -- "내려받지 못했어요. 인터넷 연결을 확인하고 다시 실행하세요."
+    print -r -- "$(L "내려받지 못했어요. 인터넷 연결을 확인하고 다시 실행하세요." "Couldn't download them. Check the internet connection and run this again.")"
     exit 1
   fi
   exec /bin/zsh "$dest/setup" "$@"
@@ -53,93 +65,93 @@ wait_for() {
   local what="$1"; shift
   local frames=(⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏) i=0
   until "$@" >/dev/null 2>&1; do
-    printf "\r  %s %s (그만두려면 Ctrl+C)" "${frames[i % 10 + 1]}" "$what"
+    printf "\r  %s %s (%s)" "${frames[i % 10 + 1]}" "$what" "$(L "그만두려면 Ctrl+C" "Ctrl+C to stop")"
     i=$((i + 1))
     sleep 2
   done
   printf "\r\e[K"
 }
 
-trap 'print -r -- ""; print -r -- "멈췄어요. 준비되면 $me/setup 을 다시 실행하세요. 끝난 단계는 건너뛰어요."; exit 130' INT
+trap 'print -r -- ""; L "멈췄어요. 준비되면 $me/setup 을 다시 실행하세요. 끝난 단계는 건너뛰어요." "Stopped. Run $me/setup again when ready; finished steps are skipped."; exit 130' INT
 
-print -r -- "${bold}Penfold — Mac 준비${off}"
-print -r -- "${dim}iPhone에서 이 Mac의 에이전트를 보려면 아래 여섯 가지가 필요해요.${off}"
+print -r -- "$(L "${bold}Penfold — Mac 준비${off}" "${bold}Penfold — Mac setup${off}")"
+print -r -- "$(L "${dim}iPhone에서 이 Mac의 에이전트를 보려면 아래 여섯 가지가 필요해요.${off}" "${dim}To see this Mac's agents on your iPhone, these six things need to be ready.${off}")"
 
 # 1 ─ Command line tools: /usr/bin/python3, which the app runs over SSH, lives there.
-step 1 "개발자 도구 (python3)"
+step 1 "$(L "개발자 도구 (python3)" "Developer tools (python3)")"
 clt_ready() { xcode-select -p && /usr/bin/python3 -c 'pass'; }
 if clt_ready >/dev/null 2>&1; then
-  ok "설치돼 있어요"
-elif ask "Apple 개발자 도구(Command Line Tools)를 설치할까요? 창이 뜨면 '설치'를 누르세요."; then
+  ok "$(L "설치돼 있어요" "Installed")"
+elif ask "$(L "Apple 개발자 도구(Command Line Tools)를 설치할까요? 창이 뜨면 '설치'를 누르세요." "Install Apple's Command Line Tools? Click 'Install' in the window that opens.")"; then
   xcode-select --install >/dev/null 2>&1
-  wait_for "설치를 기다리는 중 (몇 분 걸려요)" clt_ready
-  ok "설치했어요"
+  wait_for "$(L "설치를 기다리는 중 (몇 분 걸려요)" "Waiting for the install (takes a few minutes)")" clt_ready
+  ok "$(L "설치했어요" "Installed")"
 else
-  todo "없어요. 터미널에서 xcode-select --install 을 실행해 설치하세요."
+  todo "$(L "없어요. 터미널에서 xcode-select --install 을 실행해 설치하세요." "Missing. Run xcode-select --install in Terminal to install them.")"
 fi
 
 # 2 ─ Tailscale: the iPhone reaches this Mac through it, from anywhere.
 step 2 "Tailscale"
 tailscale_running() { [[ "$("$TAILSCALE" status --json 2>/dev/null | /usr/bin/python3 -c 'import json,sys; print(json.load(sys.stdin).get("BackendState",""))' 2>/dev/null)" == Running ]]; }
 if [[ ! -d "$TAILSCALE_APP" ]]; then
-  if ask "Tailscale이 없어요. 내려받아 설치 화면을 열까요?"; then
+  if ask "$(L "Tailscale이 없어요. 내려받아 설치 화면을 열까요?" "Tailscale isn't installed. Download it and open the installer?")"; then
     pkg="$HOME/Downloads/Tailscale.pkg"
-    note "내려받는 중…"
+    note "$(L "내려받는 중…" "Downloading…")"
     if curl -fsSL -o "$pkg" https://pkgs.tailscale.com/stable/Tailscale-latest-macos.pkg; then
       open "$pkg"
-      note "설치 화면에서 '계속'을 눌러 끝까지 진행하세요."
+      note "$(L "설치 화면에서 '계속'을 눌러 끝까지 진행하세요." "In the installer, click 'Continue' through to the end.")"
     else
       open "https://tailscale.com/download/mac"
-      note "내려받지 못해서 Tailscale 사이트를 열었어요. 거기서 설치하세요."
+      note "$(L "내려받지 못해서 Tailscale 사이트를 열었어요. 거기서 설치하세요." "Couldn't download it, so the Tailscale site is open. Install it from there.")"
     fi
-    wait_for "설치를 기다리는 중" test -x "$TAILSCALE"
-    ok "설치했어요"
+    wait_for "$(L "설치를 기다리는 중" "Waiting for the install")" test -x "$TAILSCALE"
+    ok "$(L "설치했어요" "Installed")"
   else
-    todo "없어요. https://tailscale.com/download/mac 에서 설치하세요."
+    todo "$(L "없어요. https://tailscale.com/download/mac 에서 설치하세요." "Missing. Install it from https://tailscale.com/download/mac")"
   fi
 fi
 if [[ -x "$TAILSCALE" ]]; then
   if tailscale_running; then
-    ok "켜져 있어요 · $("$TAILSCALE" ip -4 2>/dev/null | head -1)"
+    ok "$(L "켜져 있어요 · $("$TAILSCALE" ip -4 2>/dev/null | head -1)" "On · $("$TAILSCALE" ip -4 2>/dev/null | head -1)")"
   elif ! $check_only; then
     open -a "$TAILSCALE_APP"
-    note "메뉴 막대의 Tailscale에서 로그인하고 켜 주세요. iPhone과 같은 계정이어야 해요."
-    wait_for "Tailscale이 켜지길 기다리는 중" tailscale_running
-    ok "켜졌어요 · $("$TAILSCALE" ip -4 2>/dev/null | head -1)"
+    note "$(L "메뉴 막대의 Tailscale에서 로그인하고 켜 주세요. iPhone과 같은 계정이어야 해요." "Log in to Tailscale from the menu bar and turn it on. Use the same account as on your iPhone.")"
+    wait_for "$(L "Tailscale이 켜지길 기다리는 중" "Waiting for Tailscale to turn on")" tailscale_running
+    ok "$(L "켜졌어요 · $("$TAILSCALE" ip -4 2>/dev/null | head -1)" "On · $("$TAILSCALE" ip -4 2>/dev/null | head -1)")"
   else
-    todo "꺼져 있거나 로그인 전이에요."
+    todo "$(L "꺼져 있거나 로그인 전이에요." "Off, or not logged in yet.")"
   fi
 fi
 
 # 3 ─ Remote Login: the app talks to this Mac over SSH.
-step 3 "원격 로그인 (SSH)"
+step 3 "$(L "원격 로그인 (SSH)" "Remote Login (SSH)")"
 ssh_on() { nc -z -G 1 127.0.0.1 22 && [[ -r /etc/ssh/ssh_host_ed25519_key.pub ]]; }
 if ssh_on >/dev/null 2>&1; then
-  ok "켜져 있어요"
+  ok "$(L "켜져 있어요" "On")"
 elif ! $check_only; then
   open "x-apple.systempreferences:com.apple.Sharing-Settings.extension"
-  note "열린 설정 창(일반 › 공유)에서 '원격 로그인'을 켜 주세요."
-  wait_for "원격 로그인이 켜지길 기다리는 중" ssh_on
-  ok "켜졌어요"
+  note "$(L "열린 설정 창(일반 › 공유)에서 '원격 로그인'을 켜 주세요." "In the Settings window that opened (General › Sharing), turn on 'Remote Login'.")"
+  wait_for "$(L "원격 로그인이 켜지길 기다리는 중" "Waiting for Remote Login to turn on")" ssh_on
+  ok "$(L "켜졌어요" "On")"
 else
-  todo "꺼져 있어요. 시스템 설정 › 일반 › 공유 › 원격 로그인."
+  todo "$(L "꺼져 있어요. 시스템 설정 › 일반 › 공유 › 원격 로그인." "Off. System Settings › General › Sharing › Remote Login.")"
 fi
 
 # 4 ─ Herdr: herdr-core (hc) runs the terminals and agents, Herdr.app groups them into spaces.
-step 4 "Herdr와 코딩 에이전트"
+step 4 "$(L "Herdr와 코딩 에이전트" "Herdr and coding agents")"
 if [[ -x "$HC" ]] && "$HC" --version >/dev/null 2>&1; then
   ok "herdr-core $("$HC" --version 2>/dev/null | awk '{print $2}')"
-elif ask "herdr-core(hc)가 없어요. 설치할까요?"; then
-  curl -fsSL https://releases.herdr.dev/core/install.sh | sh && ok "herdr-core 설치했어요" || fail "herdr-core 설치에 실패했어요."
+elif ask "$(L "herdr-core(hc)가 없어요. 설치할까요?" "herdr-core (hc) isn't installed. Install it?")"; then
+  curl -fsSL https://releases.herdr.dev/core/install.sh | sh && ok "$(L "herdr-core 설치했어요" "Installed herdr-core")" || fail "$(L "herdr-core 설치에 실패했어요." "Couldn't install herdr-core.")"
 else
-  todo "herdr-core가 없어요: curl -fsSL https://releases.herdr.dev/core/install.sh | sh"
+  todo "$(L "herdr-core가 없어요: curl -fsSL https://releases.herdr.dev/core/install.sh | sh" "herdr-core is missing: curl -fsSL https://releases.herdr.dev/core/install.sh | sh")"
 fi
 if [[ -x "$HERDR_APP" || -d /Applications/Herdr.app ]]; then
-  ok "Herdr 앱"
-elif ask "Herdr 앱이 없어요. 설치할까요? (스페이스·탭을 쓰려면 필요해요)"; then
-  curl -fsSL https://releases.herdr.dev/app/install.sh | sh && ok "Herdr 앱 설치했어요" || fail "Herdr 앱 설치에 실패했어요."
+  ok "$(L "Herdr 앱" "Herdr app")"
+elif ask "$(L "Herdr 앱이 없어요. 설치할까요? (스페이스·탭을 쓰려면 필요해요)" "The Herdr app isn't installed. Install it? (needed for spaces and tabs)")"; then
+  curl -fsSL https://releases.herdr.dev/app/install.sh | sh && ok "$(L "Herdr 앱 설치했어요" "Installed the Herdr app")" || fail "$(L "Herdr 앱 설치에 실패했어요." "Couldn't install the Herdr app.")"
 else
-  todo "Herdr 앱이 없어요: curl -fsSL https://releases.herdr.dev/app/install.sh | sh"
+  todo "$(L "Herdr 앱이 없어요: curl -fsSL https://releases.herdr.dev/app/install.sh | sh" "The Herdr app is missing: curl -fsSL https://releases.herdr.dev/app/install.sh | sh")"
 fi
 # The agents themselves: Penfold shows and drives them but doesn't install them. Not having one
 # doesn't stop pairing (a shell works too), so it's a warning, not a missing step.
@@ -148,60 +160,60 @@ agents=()
 has claude && agents+=("Claude Code")
 has codex && agents+=("Codex")
 if ((${#agents})); then
-  ok "코딩 에이전트: ${(j:, :)agents}"
+  ok "$(L "코딩 에이전트: ${(j:, :)agents}" "Coding agents: ${(j:, :)agents}")"
 else
-  print -r -- "  ${yellow}!${off} Claude Code도 Codex도 없어요. iPhone에서 시작할 에이전트가 없으니 하나는 설치하세요."
-  note "Claude Code: curl -fsSL https://claude.ai/install.sh | bash   (설치 뒤 터미널에서 claude 로 로그인)"
-  note "Codex:       npm install -g @openai/codex                    (설치 뒤 codex 로 로그인)"
+  print -r -- "$(L "  ${yellow}!${off} Claude Code도 Codex도 없어요. iPhone에서 시작할 에이전트가 없으니 하나는 설치하세요." "  ${yellow}!${off} Neither Claude Code nor Codex is installed. Install one so there's an agent to start from your iPhone.")"
+  note "$(L "Claude Code: curl -fsSL https://claude.ai/install.sh | bash   (설치 뒤 터미널에서 claude 로 로그인)" "Claude Code: curl -fsSL https://claude.ai/install.sh | bash   (then run claude in Terminal to log in)")"
+  note "$(L "Codex:       npm install -g @openai/codex                    (설치 뒤 codex 로 로그인)" "Codex:       npm install -g @openai/codex                    (then run codex to log in)")"
 fi
 
 # 5 ─ Alerts: penfold-push watches the agents and sends through penfold-relay (or straight to
 #     Apple on a Mac that holds the app's push key). The phone hands over its ticket when it connects.
-step 5 "알림"
+step 5 "$(L "알림" "Alerts")"
 push_running() { launchctl print "gui/$(id -u)/co.notique.penfold-push" 2>/dev/null | grep -q "state = running"; }
 if push_running; then
-  ok "penfold-push 실행 중이에요"
-elif ask "에이전트가 답을 기다리거나 끝나면 iPhone에 알려 줄까요? (penfold-push를 켜요)"; then
-  "$here/install-push" >/dev/null && ok "켰어요" || fail "켜지 못했어요. ~/Library/Logs/penfold-push.log 를 보세요."
+  ok "$(L "penfold-push 실행 중이에요" "penfold-push is running")"
+elif ask "$(L "에이전트가 답을 기다리거나 끝나면 iPhone에 알려 줄까요? (penfold-push를 켜요)" "Alert your iPhone when an agent needs you or finishes? (turns on penfold-push)")"; then
+  "$here/install-push" >/dev/null && ok "$(L "켰어요" "Turned on")" || fail "$(L "켜지 못했어요. ~/Library/Logs/penfold-push.log 를 보세요." "Couldn't turn it on. See ~/Library/Logs/penfold-push.log")"
 else
-  todo "꺼져 있어요: $me/install-push"
+  todo "$(L "꺼져 있어요: $me/install-push" "Off: $me/install-push")"
 fi
 
 # 6 ─ Pairing: a QR with this Mac's address and key; the iPhone sends its key back.
-step 6 "iPhone 연결"
+step 6 "$(L "iPhone 연결" "Connect your iPhone")"
 if $check_only; then
   if ((missing)); then
-    print -r -- ""; print -r -- "${yellow}준비할 게 ${missing}개 남았어요.${off} $me/setup 으로 하나씩 해요."
+    print -r -- ""; print -r -- "$(L "${yellow}준비할 게 ${missing}개 남았어요.${off} $me/setup 으로 하나씩 해요." "${yellow}${missing} thing(s) left to set up.${off} Run $me/setup to go through them.")"
   else
-    print -r -- ""; print -r -- "${green}다 준비됐어요.${off} $me/setup 이나 $me/penfold-pair 로 연결하세요."
+    print -r -- ""; print -r -- "$(L "${green}다 준비됐어요.${off} $me/setup 이나 $me/penfold-pair 로 연결하세요." "${green}All set.${off} Connect with $me/setup or $me/penfold-pair.")"
   fi
   exit 0
 fi
 if ((missing)); then
   print -r -- ""
-  print -r -- "${yellow}위의 ! 항목을 먼저 마친 뒤 $me/setup 을 다시 실행하세요.${off}"
+  print -r -- "$(L "${yellow}위의 ! 항목을 먼저 마친 뒤 $me/setup 을 다시 실행하세요.${off}" "${yellow}Finish the ! items above first, then run $me/setup again.${off}")"
   exit 1
 fi
-note "iPhone에서 Penfold와 Tailscale을 켠 다음, 기본 카메라로 아래 QR을 찍으세요."
-note "'Penfold에서 열기' → '연결'을 누르면 끝나요."
+note "$(L "iPhone에서 Penfold와 Tailscale을 켠 다음, 기본 카메라로 아래 QR을 찍으세요." "With Penfold and Tailscale on your iPhone, scan the QR below with the Camera app.")"
+note "$(L "'Penfold에서 열기' → '연결'을 누르면 끝나요." "Tap 'Open in Penfold' → 'Connect' and you're done.")"
 print -r -- ""
 /usr/bin/python3 "$here/penfold-pair"
 status=$?
 
 if ((status == 0)); then
   print -r -- ""
-  print -r -- "${green}${bold}준비 끝!${off} 이제 iPhone에서 에이전트가 보여요."
+  print -r -- "$(L "${green}${bold}준비 끝!${off} 이제 iPhone에서 에이전트가 보여요." "${green}${bold}Done!${off} Your agents now show up on your iPhone.")"
   # A sleeping Mac can't be reached. penfold-push keeps it up while an agent works; plugged in,
   # it can stay up altogether (needs the admin password, so only when asked).
   ac_sleep=$(pmset -g custom 2>/dev/null | awk '/AC Power/ { ac = 1 } ac && $1 == "sleep" { print $2; exit }')
   if [[ -n "$ac_sleep" && "$ac_sleep" != 0 ]]; then
     print -r -- ""
-    note "Mac이 잠자기에 들어가면 iPhone에서 닿지 않아요. 에이전트가 일하는 동안은 penfold-push가 깨워 두지만,"
-    note "쉬는 동안에도 닿으려면 전원 연결 중엔 잠자기를 끄는 게 좋아요. (화면은 꺼져도 돼요)"
-    if ask "전원에 연결돼 있을 때 잠자기를 끌까요? (관리자 암호가 필요해요)"; then
-      sudo pmset -c sleep 0 && ok "전원 연결 중엔 잠들지 않아요" || fail "바꾸지 못했어요. 시스템 설정 › 배터리 › 옵션에서 바꿀 수 있어요."
+    note "$(L "Mac이 잠자기에 들어가면 iPhone에서 닿지 않아요. 에이전트가 일하는 동안은 penfold-push가 깨워 두지만," "A sleeping Mac can't be reached from your iPhone. penfold-push keeps it awake while agents work,")"
+    note "$(L "쉬는 동안에도 닿으려면 전원 연결 중엔 잠자기를 끄는 게 좋아요. (화면은 꺼져도 돼요)" "but to reach it any time, turn off sleep while it's plugged in. (The display can still sleep.)")"
+    if ask "$(L "전원에 연결돼 있을 때 잠자기를 끌까요? (관리자 암호가 필요해요)" "Turn off sleep while plugged in? (needs your admin password)")"; then
+      sudo pmset -c sleep 0 && ok "$(L "전원 연결 중엔 잠들지 않아요" "Won't sleep while plugged in")" || fail "$(L "바꾸지 못했어요. 시스템 설정 › 배터리 › 옵션에서 바꿀 수 있어요." "Couldn't change it. You can in System Settings › Battery › Options.")"
     else
-      note "나중에: sudo pmset -c sleep 0  (되돌리기: sudo pmset -c sleep 1)"
+      note "$(L "나중에: sudo pmset -c sleep 0  (되돌리기: sudo pmset -c sleep 1)" "Later: sudo pmset -c sleep 0  (undo: sudo pmset -c sleep 1)")"
     fi
   fi
 fi
