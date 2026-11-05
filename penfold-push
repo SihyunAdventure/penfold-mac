@@ -127,6 +127,9 @@ def deliver(apns, payload, collapse=None):
     """`payload` is the alert, or a function of the device's language ("ko", "en") giving it."""
     for device in devices():
         body = payload(device.get("lang") or "ko") if callable(payload) else payload
+        if device.get("mac"):
+            # The phone's id for this Mac: a tap opens the agent on this Mac, not another one.
+            body = {**body, "mac": device["mac"]}
         code, reason = apns.send(device, body, collapse)
         name = device.get("name") or os.path.basename(device["path"])
         if code == "200":
