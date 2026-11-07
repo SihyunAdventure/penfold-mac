@@ -6,6 +6,8 @@ Follows `hc events` (the same stream the app reads) and sends an alert when an a
 turns blocked (응답 필요) or goes from working to done/idle (끝남). The phone registers itself
 by writing ~/.config/penfold/devices/<id>.json ({"token", "env": sandbox|production, "ticket"}).
 The ticket is what the relay checks: it forwards only alerts whose ticket matches the token.
+"mutedUntil" (seconds since 1970) in that file is the phone turning its alerts off until then:
+the time is here, so they come back by themselves, with the app closed.
 
   penfold-push [--key-id X --team T --key PATH]   (defaults: this Mac's team key, below)
   penfold-push --test                             one test alert to every device, then exit
@@ -29,6 +31,10 @@ KEY_DIR = "~/.config/" + "secrets/apns"
 KINDS = {"permission": "권한 요청", "question": "질문", "auth": "로그인 필요"}
 KINDS_EN = {"permission": "Permission", "question": "Question", "auth": "Login needed"}
 QUIET_SECONDS = 20  # the same alert for the same agent, at most this often
+# What the running daemon can do, for the app to read: new files alone don't change a daemon
+# that's already running. 2: honors "mutedUntil".
+VERSION = 2
+VERSION_FILE = os.path.expanduser("~/.config/penfold/push-version")
 
 
 def log(*parts):
@@ -123,9 +129,17 @@ def devices():
     return found
 
 
-def deliver(apns, payload, collapse=None):
+def muted(device, now=None):
+    until = device.get("mutedUntil")
+    return isinstance(until, (int, float)) and (time.time() if now is None else now) < until
+
+
+def deliver(apns, payload, collapse=None, even_muted=False):
     """`payload` is the alert, or a function of the device's language ("ko", "en") giving it."""
     for device in devices():
+        if muted(device) and not even_muted:
+            log("muted", device.get("name") or os.path.basename(device["path"]))
+            continue
         body = payload(device.get("lang") or "ko") if callable(payload) else payload
         if device.get("mac"):
             # The phone's id for this Mac: a tap opens the agent on this Mac, not another one.
@@ -255,8 +269,11 @@ def main():
             log("no devices in", DEVICES, "- open the app once")
             return 1
         deliver(apns, lambda lang: {"aps": {"alert": {"title": "Penfold", "body": "Alerts are on" if lang == "en" else "푸시가 연결됐어요"},
-                                            "sound": "default"}})
+                                            "sound": "default"}}, even_muted=True)  # asked for just now
         return 0
+    os.makedirs(os.path.dirname(VERSION_FILE), exist_ok=True)
+    with open(VERSION_FILE, "w") as f:
+        f.write(f"{VERSION}\n")
     backoff, awake = 1, Awake()
     while True:
         started = time.time()

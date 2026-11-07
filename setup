@@ -172,7 +172,12 @@ fi
 step 5 "$(L "알림" "Alerts")"
 push_running() { launchctl print "gui/$(id -u)/co.notique.penfold-push" 2>/dev/null | grep -q "state = running"; }
 if push_running; then
-  ok "$(L "penfold-push 실행 중이에요" "penfold-push is running")"
+  # Started again here: a running daemon stays on the code it started with, whatever was downloaded.
+  if $check_only || "$here/install-push" >/dev/null; then
+    ok "$(L "penfold-push 실행 중이에요" "penfold-push is running")"
+  else
+    fail "$(L "다시 켜지 못했어요. ~/Library/Logs/penfold-push.log 를 보세요." "Couldn't restart it. See ~/Library/Logs/penfold-push.log")"
+  fi
 elif ask "$(L "에이전트가 답을 기다리거나 끝나면 iPhone에 알려 줄까요? (penfold-push를 켜요)" "Alert your iPhone when an agent needs you or finishes? (turns on penfold-push)")"; then
   "$here/install-push" >/dev/null && ok "$(L "켰어요" "Turned on")" || fail "$(L "켜지 못했어요. ~/Library/Logs/penfold-push.log 를 보세요." "Couldn't turn it on. See ~/Library/Logs/penfold-push.log")"
 else
